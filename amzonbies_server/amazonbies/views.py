@@ -1,5 +1,6 @@
 from flask import request
 from flask import render_template
+from flask import abort
 
 from amazonbies import app
 from datetime import datetime
@@ -25,18 +26,24 @@ def q1():
 
     return render_template('q1.html',number=number, current_date=current_date)
 
-@app.route('/')
+@app.route('/q2')
 def q2():
     """
     example query:/q2?userid=123456789&tweet_time=2004-08-15+16:23:42
     """
 
-    userid = request.args.get('uid')
-    tweet_time = request.args.get('tweet_time')
+    userid = request.args.get('userid')
+    tweet_time_str = request.args.get('tweet_time')
 
-    if not all([userid, tweet_time]):
+    if not all([userid, tweet_time_str]):
         abort(403)
 
+    tweet_time = datetime.strptime(tweet_time_str, "%Y-%m-%d %H:%M:%S")
+
+    # content need to query hbase and sql
+    content = "%s %s "%(userid, tweet_time_str)
+
+    return render_template('q2.html', content=content)
 
 
 
