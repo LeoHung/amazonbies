@@ -26,7 +26,7 @@ def q1():
 
     return render_template('q1.html',number=number, current_date=current_date)
 
-@app.route('/q2')
+@app.route('/hbase/q2')
 def q2():
     """
     example query:/q2?userid=123456789&tweet_time=2004-08-15+16:23:42
