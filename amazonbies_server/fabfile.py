@@ -36,15 +36,14 @@ def deploy(version="product"):
         with cd('amazonbies/amazonbies_server'):
             run('sudo pip install -r amazonbies/requirements.txt')
             run('sudo mkdir -p /var/www')
-            run('sudo mkdir -p /var/www/amazonbies')
+            run('sudo mkdir -p /var/www/%s/' % version)
             run('sudo cp -r amazonbies/ /var/www/%s/' % version)
-            run('sudo ln -f -s Settings/nginx/product.conf /etc/nginx/conf.d/amazonbies.conf')
             run('sudo /etc/init.d/nginx restart')
 
             run('sudo mkdir -p /var/log/uwsgi')
             run('sudo chown -R ubuntu:ubuntu /var/log/uwsgi')
 
-            run('sudo ln -f -s /home/ubuntu/amazonbies/amazonbies_server/Settings/nginx/product.conf  /etc/nginx/conf.d/')
+            run('sudo ln -f -s /home/ubuntu/product/amazonbies/amazonbies_server/Settings/nginx/product.conf  /etc/nginx/conf.d/')
             run('sudo /etc/init.d/nginx restart')
 
             run('sudo rm -rf /tmp/amazonbies_uwsgi.sock')

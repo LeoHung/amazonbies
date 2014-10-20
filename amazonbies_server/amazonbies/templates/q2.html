@@ -1,2 +1,4 @@
 {{config['TEAMID']}},{{config['AWS_ACCOUNT_ID1']}},{{config['AWS_ACCOUNT_ID2']}},{{config['AWS_ACCOUNT_ID3']}}
-{{content}}
+{% for row in rows %}
+{{row.get("cfmain:tweetId")}}:{{row.get("cfmain:sentimentScore")}}:{{row.get("cfmain:censoredText")}}
+{% endfor %}
