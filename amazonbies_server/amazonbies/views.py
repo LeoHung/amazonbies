@@ -5,6 +5,10 @@ from flask import abort
 from amazonbies import app
 from datetime import datetime
 
+@app.route('/')
+def index():
+    return "I'm alive. 15619"
+
 @app.route('/q1', methods=['GET'])
 def q1():
     """
