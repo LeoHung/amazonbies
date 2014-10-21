@@ -15,5 +15,5 @@ class HBase:
         row = table.row(row_key)
         return row
 
-    def close():
+    def close(self):
         self.conn.close()
