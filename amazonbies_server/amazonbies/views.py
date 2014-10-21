@@ -48,9 +48,9 @@ def hbase_q2():
     tweet_time_str = tweet_time_str.replace(" ", "+")
 
     hbase = HBase()
-    rows = hbase.get('tweets', userid, tweet_time_str)
+    row = hbase.get('tweets', userid, tweet_time_str)
 
-    return render_template('q2.html', rows=rows)
+    return render_template('q2.html', row=row)
 
 
 

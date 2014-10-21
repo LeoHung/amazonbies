@@ -12,8 +12,8 @@ class HBase:
     def get(self, table, userid, tweet_time_str):
         table = self.conn.table(table)
         row_key = "%s_%s" %(userid, tweet_time_str)
-        rows = table.rows(row_key)
-        return rows
+        row = table.row(row_key)
+        return row
 
     def close():
         self.conn.close()

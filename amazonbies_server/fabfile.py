@@ -37,7 +37,7 @@ def deploy(version="product"):
             run('sudo pip install -r amazonbies/requirements.txt')
             run('sudo mkdir -p /var/www')
             run('sudo mkdir -p /var/www/%s/' % version)
-            run('sudo cp -r amazonbies/ /var/www/%s/' % version)
+            run('sudo cp -r amazonbies /var/www/%s/' % version)
             run('sudo /etc/init.d/nginx restart')
 
             run('sudo mkdir -p /var/log/uwsgi')
