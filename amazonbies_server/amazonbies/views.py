@@ -31,8 +31,6 @@ def q1():
 
     return render_template('q1.html',number=number, current_date=current_date)
 
-
-
 @app.route('/hbase/q2')
 def hbase_q2():
     """
@@ -49,6 +47,8 @@ def hbase_q2():
 
     hbase = HBase()
     row = hbase.get('tweets', userid, tweet_time_str)
+
+    hbase.close()
 
     return render_template('q2.html', row=row)
 
