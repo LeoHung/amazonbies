@@ -34,7 +34,7 @@ def q1():
 @app.route('/hbase/q2')
 def hbase_q2():
     """
-    example query:/q2?userid=123456789&tweet_time=2004-08-15+16:23:42
+    example query:/q2?userid=1473664038&tweet_time=2014-04-08+02:43:27
     """
 
     userid = request.args.get('userid')
