@@ -16,13 +16,13 @@ def deploy_local(dir="/var/www/product"):
     restart_services()
 
 def first_deploy(version="product"):
-    run('sudo apt-get update')
-    run('sudo apt-get install git')
-    run('sudo apt-get install nginx')
+    run('sudo apt-get -y update')
+    run('sudo apt-get -y install git')
+    run('sudo apt-get -y install nginx')
     run('sudo /etc/init.d/nginx start')
-    run('sudo apt-get install python-pip')
-    run('sudo apt-get install python-dev')
-    run('sudo rm /etc/nginx/sites-enabled/default')
+    run('sudo apt-get -y install python-pip')
+    run('sudo apt-get -y install python-dev')
+    run('sudo rm -rf /etc/nginx/sites-enabled/default')
 
     deploy(version)
 
@@ -50,4 +50,9 @@ def deploy(version="product"):
             run('uwsgi --ini Settings/uwsgi/product.ini')
 
             run('sudo chown www-data:www-data /tmp/amazonbies_uwsgi.sock')
+
+def keygen():
+    with cd('~/.ssh/'):
+        run('ssh-keygen')
+        run('cat id_rsa.pub')
 
