@@ -54,21 +54,34 @@ def hbase_q2():
         abort(403)
 
     tweet_time_str = tweet_time_str.replace(" ", "+")
-    cache_page = cache.get(userid+"_"+tweet_time_str)
+    # cache_page = cache.get(userid+"_"+tweet_time_str)
 
-    if cache_page == None:
-        row = hbase.get('tweets', userid, tweet_time_str)
+    # if cache_page == None:
+    #     row = hbase.get('tweets', userid, tweet_time_str)
 
-        page = "Amazombies,jiajunwa,chiz2,sanchuah\n%s:%s:%s;" %(
-            row['cfmain:tweetId'],
-            row['cfmain:sentimentScore'],
-            row['cfmain:censoredText']
-        )
+    #     page = "Amazombies,jiajunwa,chiz2,sanchuah\n%s:%s:%s;" %(
+    #         row.get('cfmain:tweetId'),
+    #         row.get('cfmain:sentimentScore'),
+    #         row.get('cfmain:censoredText')
+    #     )
 
-        cache.set(userid+"_"+tweet_time_str, page)
-        return page
-    else:
-        return cache_page
+    #     cache.set(userid+"_"+tweet_time_str, page)
+    #     return page
+    # else:
+    #     return cache_page
+
+    # cache_page = cache.get(userid+"_"+tweet_time_str)
+
+    row = hbase.get('tweets', userid, tweet_time_str)
+
+    page = "Amazombies,jiajunwa,chiz2,sanchuah\n%s:%s:%s;" %(
+        row.get('cfmain:tweetId'),
+        row.get('cfmain:sentimentScore'),
+        row.get('cfmain:censoredText')
+    )
+
+    return page
+
 
 
 
