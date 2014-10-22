@@ -23,6 +23,7 @@ def first_deploy(version="product"):
     run('sudo apt-get -y install python-pip')
     run('sudo apt-get -y install python-dev')
     run('sudo rm -rf /etc/nginx/sites-enabled/default')
+    run('sudo apt-get -y install memcached')
 
     deploy(version)
 
