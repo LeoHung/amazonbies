@@ -3,6 +3,8 @@ from flask import render_template
 from flask import abort
 
 from amazonbies import app
+from amazonbies import cache
+from amazonbies import hbase
 from amazonbies.hbase_model import HBase
 from datetime import datetime
 
@@ -17,19 +19,29 @@ def q1():
     /q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
     """
 
-    key = request.args.get('key')
-    if key == None:
-        abort(403)
-    try:
-        key = int(key)
-    except:
-        abort(403)
+    key_str = request.args.get('key')
+    cache_page = cache.get(key_str)
+    if cache_page == None:
 
-    public_key = app.config.get('PUBLIC_KEY')
-    number = key / public_key
-    current_date = datetime.now()
+        if key_str == None:
+            abort(403)
+        try:
+            key = int(key_str)
+        except:
+            abort(403)
 
-    return render_template('q1.html',number=number, current_date=current_date)
+        public_key = app.config.get('PUBLIC_KEY')
+        number = key / public_key
+        current_date = datetime.now()
+
+        page =  "%d\nAmazombies,jiajunwa,chiz2,sanchuah\n%s" %(number, current_date.strftime("%Y-%m-%d %H:%M:%S"))
+
+        cache.set(key_str, page)
+
+        return page
+        # return render_template('q1.html',number=number, current_date=current_date)
+    else:
+        return cache_page
 
 @app.route('/hbase/q2')
 def hbase_q2():
@@ -44,13 +56,22 @@ def hbase_q2():
         abort(403)
 
     tweet_time_str = tweet_time_str.replace(" ", "+")
+    cache_page = cache.get(userid+"_"+tweet_time_str)
 
-    hbase = HBase()
-    row = hbase.get('tweets', userid, tweet_time_str)
+    if cache_page == None:
+        row = hbase.get('tweets', userid, tweet_time_str)
 
-    hbase.close()
+        page = "Amazombies,jiajunwa,chiz2,sanchuah\n%s:%s:%s;" %(
+            row['cfmain:tweetId'],
+            row['cfmain:sentimentScore'],
+            row['cfmain:censoredText']
+        )
 
-    return render_template('q2.html', row=row)
+        cache.set(userid+"_"+tweet_time_str, page)
+        return page
+    else:
+        return cache_page
+
 
 
 

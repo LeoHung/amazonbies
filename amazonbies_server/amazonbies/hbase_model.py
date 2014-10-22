@@ -1,11 +1,10 @@
 import happybase
-from amazonbies import app
 
 class HBase:
-    def __init__(self):
-        self.get_connection()
+    def __init__(self, app):
+        self.get_connection(app.config['HBASE_HOST'])
 
-    def get_connection(self, ip=app.config['HBASE_HOST']):
+    def get_connection(self, ip):
         self.conn = happybase.Connection(ip)
         self.conn.open()
 
