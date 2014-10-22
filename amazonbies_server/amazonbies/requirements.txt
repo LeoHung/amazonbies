@@ -8,6 +8,7 @@ happybase==0.8
 itsdangerous==0.24
 paramiko==1.15.1
 pycrypto==2.6.1
+python-memcached==1.53
 thrift==0.9.1
 uWSGI==2.0.7
 wsgiref==0.1.2
