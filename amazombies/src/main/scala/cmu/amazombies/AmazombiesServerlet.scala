@@ -59,7 +59,6 @@ object MySQLFactory{
 class AmazombiesServerlet extends AmazombiesStack {
   implicit val scalaCache = ScalaCache(MemcachedCache("localhost:11211"))
 
-  scalacache.put("myKey")("myValue")
 
   // def getNumberString(key_str:String):String = memoize {
   //     val key:BigInt = BigInt.apply(key_str)
@@ -76,23 +75,23 @@ class AmazombiesServerlet extends AmazombiesStack {
 
   get("/q1") {
     val key_str:String = params("key")
-    // val number_str:String
+    val number_str:String = scalacache.get(key_str)
 
     // var number_str:String = Cache.getNumberString(key_str)
-    // // if(number_str == None){
-    //   val key:BigInt = BigInt.apply(key_str)
-    //   val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-    //   val number = key/publickey
-    //   val number_str = number.toString()
+    if(number_str == None){
+      val key:BigInt = BigInt.apply(key_str)
+      val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+      val number = key/publickey
+      val number_str = number.toString()
       // Cache.setNumberString(key_str)(number_str)
-    // }
+      scalacache.put(key_str, number_str)
+    }
 
     // val today = Calendar.getInstance().getTime()
     // val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
 
-    // number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
+    number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
     // getNumberString(key_str)
-    "lalal"
   }
 
   get("/sql/q2"){
