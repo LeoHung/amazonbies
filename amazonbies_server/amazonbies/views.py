@@ -20,9 +20,8 @@ def q1():
     """
 
     key_str = request.args.get('key')
-    cache_page = cache.get(key_str)
-    if cache_page == None:
-
+    cache_number = cache.get(key_str)
+    if cache_number == None:
         if key_str == None:
             abort(403)
         try:
@@ -32,16 +31,15 @@ def q1():
 
         public_key = app.config.get('PUBLIC_KEY')
         number = key / public_key
-        current_date = datetime.now()
 
-        page =  "%d\nAmazombies,jiajunwa,chiz2,sanchuah\n%s" %(number, current_date.strftime("%Y-%m-%d %H:%M:%S"))
-
-        cache.set(key_str, page)
-
-        return page
-        # return render_template('q1.html',number=number, current_date=current_date)
+        cache.set(key_str, number)
     else:
-        return cache_page
+        number = cache_number
+
+    current_date = datetime.now()
+
+    return "%s\nAmazombies,jiajunwa,chiz2,sanchuah\n%s" %(number, current_date.strftime("%Y-%m-%d %H:%M:%S"))
+
 
 @app.route('/hbase/q2')
 def hbase_q2():
