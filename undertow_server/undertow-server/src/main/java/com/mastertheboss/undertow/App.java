@@ -41,10 +41,17 @@ class SQLConnection{
     public static Connection getSQLConnection(){
 
         if(SQLConnection.mysqlConn == null){
-            String mysql_url="54.172.214.61";
+
+            String mysql_url="localhost";
             String mysql_db="tweet";
             String mysql_user="root";
-            String mysql_password="db15319root";
+            String mysql_password="";
+
+            // String mysql_url="54.172.214.61";
+            // String mysql_db="tweet";
+            // String mysql_user="root";
+            // String mysql_password="db15319root";
+
             String driver="com.mysql.jdbc.Driver";
             try {
                 // make the connection
@@ -76,30 +83,34 @@ public class App {
                         }
                     };
 
+        final LimitedHashMap<String,String> q1Cache = new LimitedHashMap<String,String>(1000* 1000);
         final BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
                 String key_str = exchange.getQueryParameters().get("key").getFirst();
-                BigInteger key = new BigInteger(key_str);
-                BigInteger number = key.divide(publicKey);
-                String timeStr = timeFormat.format(Calendar.getInstance().getTime());
+                String numberStr = q1Cache.get(key_str);
 
+                if(numberStr == null){
+                    BigInteger key = new BigInteger(key_str);
+                    BigInteger number = key.divide(publicKey);
+                    numberStr = number.toString();
+                    q1Cache.put(key_str, numberStr);
+                }
                 String output = String.format(
                     "%s\nAmazombies,jiajunwa,chiz2,sanchuah\n%s",
-                    number.toString(),
-                    timeStr
+                    numberStr,
+                    timeFormat.format(Calendar.getInstance().getTime())
                 );
-                exchange.getResponseSender().send(
-                    output
-                );
+
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                exchange.getResponseSender().send(output);
             }
         };
 
-        final LimitedHashMap<String,String> cache = new LimitedHashMap<String,String>(1000* 1000);
+        final LimitedHashMap<String,String> sqlCache = new LimitedHashMap<String,String>(1000* 1000);
         final Connection sqlConn = SQLConnection.getSQLConnection();
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -108,7 +119,7 @@ public class App {
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid+"_"+tweet_time;
 
-                String cachePage = cache.get(row_key);
+                String cachePage = sqlCache.get(row_key);
                 String page =null;
                 if(cachePage == null){
                     try{
@@ -123,7 +134,7 @@ public class App {
                             content += (tweetId +":"+sentimentScore+":"+censoredText+";");
                         }
                         page = "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content;
-                        cache.put(row_key, page);
+                        sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
