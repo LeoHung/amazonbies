@@ -75,17 +75,29 @@ class AmazombiesServerlet extends AmazombiesStack {
 
   get("/q1") {
     val key_str:String = params("key")
-    val number_str:String = scalacache.get(key_str)
+
+    val number_str = future map { scalacache.get(key_str) match {
+        case Some(x) => x
+        case None =>{
+          val key:BigInt = BigInt.apply(key_str)
+          val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+          val number = key/publickey
+          val number_str = number.toString()
+          scalacache.put(key_str, number_str)
+          number_str
+        }
+      }
+    }
 
     // var number_str:String = Cache.getNumberString(key_str)
-    if(number_str == None){
-      val key:BigInt = BigInt.apply(key_str)
-      val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-      val number = key/publickey
-      val number_str = number.toString()
-      // Cache.setNumberString(key_str)(number_str)
-      scalacache.put(key_str, number_str)
-    }
+    // if(number_str == None){
+    //   val key:BigInt = BigInt.apply(key_str)
+    //   val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+    //   val number = key/publickey
+    //   val number_str = number.toString()
+    //   // Cache.setNumberString(key_str)(number_str)
+    //   scalacache.put(key_str, number_str)
+    // }
 
     // val today = Calendar.getInstance().getTime()
     // val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
