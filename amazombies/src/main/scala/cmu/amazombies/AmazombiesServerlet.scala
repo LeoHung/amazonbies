@@ -26,7 +26,7 @@ object MySQLFactory{
   var mysqlConn:Connection = null
   def getMySQLConn() ={
     if(mysqlConn == null){
-      val mysql_url="54.172.202.199"
+      val mysql_url="54.172.214.61"
       val mysql_db="tweet"
       val mysql_user="root"
       val mysql_password="db15319root"
