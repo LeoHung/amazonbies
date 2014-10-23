@@ -73,31 +73,37 @@ class AmazombiesServerlet extends AmazombiesStack  {
   }
 
   get("/sql/q2"){
-      val userid:String = params("userid")
-      val tweet_time:String = params("tweet_time").replace(' ', '+')
-      val row_key:String = userid+"_"+tweet_time
+    val userid:String = params("userid")
+    val tweet_time:String = params("tweet_time").replace(' ', '+')
+    val row_key:String = userid+"_"+tweet_time
 
-      // there's probably a better way to do this
-      var content = ""
-
-      try {
-        // make the connection
-        val conn = MySQLFactory.getMySQLConn()
-
-        // create the statement, and run the select query
-        val statement = conn.createStatement()
-        val sql_query = "select tweetId, sentimentScore, censoredText from tweets_phase1 where userIdtime='"+row_key+"'"
-        val resultSet = statement.executeQuery(sql_query)
-        while ( resultSet.next() ) {
-          val tweetId = resultSet.getString("tweetId")
-          val sentimentScore = resultSet.getInt("sentimentScore")
-          val censoredText = resultSet.getString("censoredText")
-          content += (tweetId +":"+sentimentScore+":"+censoredText+";")
+    Await.result(scalacache.get(row_key), 1.minute) match{
+      case None =>{
+        var content = ""
+        try {
+          // make the connection
+          val conn = MySQLFactory.getMySQLConn()
+          // create the statement, and run the select query
+          val statement = conn.createStatement()
+          val sql_query = "select tweetId, sentimentScore, censoredText from tweets_phase1 where userIdtime='"+row_key+"'"
+          val resultSet = statement.executeQuery(sql_query)
+          while ( resultSet.next() ) {
+            val tweetId = resultSet.getString("tweetId")
+            val sentimentScore = resultSet.getInt("sentimentScore")
+            val censoredText = resultSet.getString("censoredText")
+            content += (tweetId +":"+sentimentScore+":"+censoredText+";")
+          }
+        } catch {
+          case e: Exception => println("exception caught in q2: " + e)
         }
-      } catch {
-        case e: Exception => println("exception caught in q2: " + e)
+        val page = "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content
+        scalacache.put(row_key)(page, Some(1.hour))
+        page
       }
-      "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content
+      case Some(page) =>{
+        page.toString()
+      }
+    }
   }
 
   get("/hbase/q2"){
