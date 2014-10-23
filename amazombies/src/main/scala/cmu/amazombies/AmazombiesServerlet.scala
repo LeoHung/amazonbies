@@ -11,7 +11,8 @@ import scalacache._
 import memcached._
 import memoization._
 import scala.concurrent.duration._
-
+import scala.concurrent.Future
+import scala.concurrent.Await
 
 // object MyCache{
 //   var cache:Map[String,String] = HashMap()
@@ -46,64 +47,29 @@ object MySQLFactory{
 }
 
 
-// object Cache{
-//   implicit val scalaCache = ScalaCache(MemcachedCache("localhost:11211"))
-//   def getNumberString(key:String):String = {
-//     scalaCache.cache.get(key)
-//   }
-//   def setNumberString(key:String, numberString:String) = {
-//     scalaCache.cache.put(key, numberString, ttl=Duration(1, "days"))
-//   }
-// }
+class AmazombiesServerlet extends AmazombiesStack  {
+  import scala.concurrent.ExecutionContext.Implicits.global
 
-class AmazombiesServerlet extends AmazombiesStack {
   implicit val scalaCache = ScalaCache(MemcachedCache("localhost:11211"))
-
-
-  // def getNumberString(key_str:String):String = memoize {
-  //     val key:BigInt = BigInt.apply(key_str)
-  //     val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-  //     val number:BigInt = key/publickey
-  //     val number_str:String = number.toString()
-  //     val today = Calendar.getInstance().getTime()
-  //     val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
-
-  //     number_str + "\nAmazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
-  // }
-
-  // val memcache_url= "localhost:11211"
 
   get("/q1") {
     val key_str:String = params("key")
+    val today = Calendar.getInstance().getTime()
+    val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
 
-    val number_str = future map { scalacache.get(key_str) match {
-        case Some(x) => x
-        case None =>{
-          val key:BigInt = BigInt.apply(key_str)
-          val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-          val number = key/publickey
-          val number_str = number.toString()
-          scalacache.put(key_str, number_str)
-          number_str
-        }
+    Await.result(scalacache.get(key_str), 1.minute) match {
+      case Some(number_str) => {
+        number_str.toString() + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
+      }
+      case None => {
+        val key:BigInt = BigInt.apply(key_str)
+        val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+        val number = key/publickey
+        val number_str:String = number.toString()
+        scalacache.put(key_str)(number_str, Some(1.hour))
+        number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
       }
     }
-
-    // var number_str:String = Cache.getNumberString(key_str)
-    // if(number_str == None){
-    //   val key:BigInt = BigInt.apply(key_str)
-    //   val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-    //   val number = key/publickey
-    //   val number_str = number.toString()
-    //   // Cache.setNumberString(key_str)(number_str)
-    //   scalacache.put(key_str, number_str)
-    // }
-
-    // val today = Calendar.getInstance().getTime()
-    // val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
-
-    number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
-    // getNumberString(key_str)
   }
 
   get("/sql/q2"){
