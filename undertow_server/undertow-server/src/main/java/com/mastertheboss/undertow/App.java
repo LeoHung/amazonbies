@@ -42,15 +42,15 @@ class SQLConnection{
 
         if(SQLConnection.mysqlConn == null){
 
-            String mysql_url="localhost";
-            String mysql_db="tweet";
-            String mysql_user="root";
-            String mysql_password="";
-
-            // String mysql_url="54.172.214.61";
+            // String mysql_url="localhost";
             // String mysql_db="tweet";
             // String mysql_user="root";
-            // String mysql_password="db15319root";
+            // String mysql_password="";
+
+            String mysql_url="54.173.36.37";
+            String mysql_db="tweet";
+            String mysql_user="root";
+            String mysql_password="db15319root";
 
             String driver="com.mysql.jdbc.Driver";
             try {
