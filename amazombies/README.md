@@ -1,8 +1,8 @@
-# amazombies #
+# amazombies frontend server #
 
-team: Amazombies
+Team: Amazombies
 
-authors: San-Chuan Hung, Jiajung Wang, Chi Chang
+Authors: San-Chuan Hung, Jiajun Wang, Chi Chang
 
 ## Packages
 
