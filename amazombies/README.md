@@ -6,16 +6,17 @@ authors: San-Chuan Hung, Jiajung Wang, Chi Chang
 
 ## Packages
 
-Please install "memcached" first. 
+Please install "memcached" first.
 
     sudo apt-get install memcached
 
+Besides, please download "mysql-connector-java-5.1.18-bin.jar" into lib/ directory.
 
 ## Build & Run ##
 
 ### launch memcached
 
-    memcached   
+    memcached
 
 ### start server
 
