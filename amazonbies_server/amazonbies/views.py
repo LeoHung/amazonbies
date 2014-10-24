@@ -68,9 +68,8 @@ def hbase_q2():
     #     cache.set(userid+"_"+tweet_time_str, page)
     #     return page
     # else:
-    #     return cache_page
-
-    # cache_page = cache.get(userid+"_"+tweet_time_str)
+    #     page = cache_page
+    #     return page
 
     row = hbase.get('tweets', userid, tweet_time_str)
 

@@ -57,19 +57,14 @@ class AmazombiesServerlet extends AmazombiesStack  {
     val today = Calendar.getInstance().getTime()
     val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
 
-    Await.result(scalacache.get(key_str), 1.minute) match {
-      case Some(number_str) => {
-        number_str.toString() + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
-      }
-      case None => {
-        val key:BigInt = BigInt.apply(key_str)
-        val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-        val number = key/publickey
-        val number_str:String = number.toString()
-        scalacache.put(key_str)(number_str, Some(1.hour))
-        number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
-      }
+    val number_str = Await.result(scalacache.get[String](key_str), 1.minute) getOrElse {
+      val key:BigInt = BigInt.apply(key_str)
+      val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+      val number = key/publickey
+      val number_str:String = number.toString()
+      scalacache.put(key_str)(number_str, Some(1.hour))
     }
+    number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
   }
 
   get("/sql/q2"){
@@ -77,32 +72,27 @@ class AmazombiesServerlet extends AmazombiesStack  {
     val tweet_time:String = params("tweet_time").replace(' ', '+')
     val row_key:String = userid+"_"+tweet_time
 
-    Await.result(scalacache.get(row_key), 1.minute) match{
-      case None =>{
-        var content = ""
-        try {
-          // make the connection
-          val conn = MySQLFactory.getMySQLConn()
-          // create the statement, and run the select query
-          val statement = conn.createStatement()
-          val sql_query = "select tweetId, sentimentScore, censoredText from tweets_phase1 where userIdtime='"+row_key+"'"
-          val resultSet = statement.executeQuery(sql_query)
-          while ( resultSet.next() ) {
-            val tweetId = resultSet.getString("tweetId")
-            val sentimentScore = resultSet.getInt("sentimentScore")
-            val censoredText = resultSet.getString("censoredText")
-            content += (tweetId +":"+sentimentScore+":"+censoredText+";")
-          }
-        } catch {
-          case e: Exception => println("exception caught in q2: " + e)
+    Await.result(scalacache.get[String](row_key), 1.minute) getOrElse {
+      var content = ""
+      try {
+        // make the connection
+        val conn = MySQLFactory.getMySQLConn()
+        // create the statement, and run the select query
+        val statement = conn.createStatement()
+        val sql_query = "select tweetId, sentimentScore, censoredText from tweets_phase1 where userIdtime='"+row_key+"'"
+        val resultSet = statement.executeQuery(sql_query)
+        while ( resultSet.next() ) {
+          val tweetId = resultSet.getString("tweetId")
+          val sentimentScore = resultSet.getInt("sentimentScore")
+          val censoredText = resultSet.getString("censoredText")
+          content += (tweetId +":"+sentimentScore+":"+censoredText+";")
         }
-        val page = "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content
-        scalacache.put(row_key)(page, Some(1.hour))
-        page
+      } catch {
+        case e: Exception => println("exception caught in q2: " + e)
       }
-      case Some(page) =>{
-        page.toString()
-      }
+      val page = "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content
+      scalacache.put(row_key)(page, Some(1.hour))
+      page
     }
   }
 
