@@ -13,16 +13,9 @@ import memoization._
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.concurrent.Await
-
-// object MyCache{
-//   var cache:Map[String,String] = HashMap()
-//   def getCache() ={
-//     cache
-//   }
-// }
+import scala.collection.concurrent.TrieMap
 
 object MySQLFactory{
-
   var mysqlConn:Connection = null
   def getMySQLConn() ={
     if(mysqlConn == null){
@@ -43,7 +36,19 @@ object MySQLFactory{
     }
     mysqlConn
   }
+}
 
+
+
+object WarmUp{
+  val publickey:BigInt = BigInt("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
+  def warmUpQ1Map(q1Map :TrieMap[String, String], k :Int){
+    var i =0;
+    for(i <- 0 to k){
+      val number_str = (BigInt(i) * publickey).toString()
+      q1Map.put(number_str, BigInt(i).toString())
+    }
+  }
 }
 
 
@@ -51,19 +56,29 @@ class AmazombiesServerlet extends AmazombiesStack  {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   implicit val scalaCache = ScalaCache(MemcachedCache("localhost:11211"))
+  val q1Map:TrieMap[String, String] = new TrieMap[String, String]
+  val publickey:BigInt = BigInt("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
 
+  def warmUpQ1Map(){
+    WarmUp.warmUpQ1Map(q1Map, 1000000)
+  }
+
+  // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
   get("/q1") {
     val key_str:String = params("key")
     val today = Calendar.getInstance().getTime()
     val timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss")
 
-    val number_str = Await.result(scalacache.get[String](key_str), 1.minute) getOrElse {
-      val key:BigInt = BigInt.apply(key_str)
-      val publickey:BigInt = BigInt.apply("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153")
-      val number = key/publickey
-      val number_str:String = number.toString()
-      scalacache.put(key_str)(number_str, Some(1.hour))
+    val number_str = q1Map.get(key_str) match{
+      case Some(x) => x
+      case None => {
+        val key:BigInt = BigInt.apply(key_str)
+        val number = key/publickey
+        q1Map.put(key_str, number.toString())
+        number.toString()
+      }
     }
+
     number_str + "\n" + "Amazombies,jiajunwa,chiz2,sanchuah\n" + timeFormat.format(today)
   }
 
@@ -122,7 +137,6 @@ class AmazombiesServerlet extends AmazombiesStack  {
     }
     "Amazombies,jiajunwa,chiz2,sanchuah\n"+ content
   }
-
 
 
   get("/") {
