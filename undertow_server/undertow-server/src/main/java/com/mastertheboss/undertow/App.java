@@ -15,25 +15,19 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
+import java.util.concurrent.*;
 import java.util.HashMap;
 
-class LimitedHashMap<K, V> extends HashMap<K, V> {
-    int maxSize;
 
-    public LimitedHashMap(int maxSize){
-        this.maxSize = maxSize;
-    }
-
-    public V put(K key, V value) {
-        if (this.size() >= this.maxSize && !this.containsKey(key)) {
-            return null;
-        } else {
-            super.put(key, value);
-            return value;
-        }
-    }
-}
-
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.util.Bytes;
 
 class SQLConnection{
     static Connection mysqlConn=null;
@@ -41,11 +35,6 @@ class SQLConnection{
     public static Connection getSQLConnection(){
 
         if(SQLConnection.mysqlConn == null){
-
-            // String mysql_url="localhost";
-            // String mysql_db="tweet";
-            // String mysql_user="root";
-            // String mysql_password="";
 
             String mysql_url="54.173.36.37";
             String mysql_db="tweet";
@@ -66,14 +55,55 @@ class SQLConnection{
     }
 }
 
+class HBaseConnection{
+    public static HTable getQ2Table(){
+
+        Configuration conf = HBaseConfiguration.create();
+        conf.addResource(System.getenv("HBASE_SETTING_FILE"));
+        HTable table = null;
+        try{
+            table = new HTable(conf, "tweets");
+        }catch( Exception e ){
+            e.printStackTrace();
+        }
+        return table;
+    }
+
+    public static HTable getQ3Table(){
+        Configuration conf = HBaseConfiguration.create();
+        conf.set("hbase.zookeeper.quorum","54.164.123.142");
+        HTable table = null;
+        try{
+            table = new HTable(conf, "tweets_q3");
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return table;
+    }
+}
+
 /**
  * Hello world!
  *
  */
 public class App {
 
+    final static BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
+
+    public static void warmUpQ1(ConcurrentMap<String,String> q1Cache, BigInteger k){
+        BigInteger key = new BigInteger("0");
+        BigInteger number = new BigInteger("0");
+        while(k.compareTo(number) > 0){
+            q1Cache.put(key.toString(), number.toString());
+            System.out.println("key: "+ key +" Number: " + number);
+            number = number.add(new BigInteger("1"));
+            key =  key.add(publicKey);
+        }
+    }
+
     public static void main(final String[] args) {
 
+        // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
                     public void handleRequest(final HttpServerExchange exchange)
                             throws Exception {
@@ -83,8 +113,9 @@ public class App {
                         }
                     };
 
-        final LimitedHashMap<String,String> q1Cache = new LimitedHashMap<String,String>(1000* 1000);
-        final BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
+        // Q1
+        final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>();
+        warmUpQ1(q1Cache, new BigInteger("1000"));
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -104,13 +135,13 @@ public class App {
                     timeFormat.format(Calendar.getInstance().getTime())
                 );
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");
                 exchange.getResponseSender().send(output);
             }
         };
 
-        final LimitedHashMap<String,String> sqlCache = new LimitedHashMap<String,String>(1000* 1000);
+        // Q2
+        final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         final Connection sqlConn = SQLConnection.getSQLConnection();
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -148,12 +179,50 @@ public class App {
             }
         };
 
+        // Q3
+        // /q3?userid=2495192362
+        final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
+        final HTable q3Table = HBaseConnection.getQ3Table();
+        HttpHandler q3Handler = new HttpHandler(){
+            public void handleRequest(final HttpServerExchange exchange)
+                    throws Exception {
+
+                String userid = exchange.getQueryParameters().get("userid").getFirst();
+                String page = q3Cache.get(userid);
+                if(page ==null){
+                    Get g = new Get(Bytes.toBytes(userid));
+                    Result r = q3Table.get(g);
+                    byte [] value = r.getValue(
+                            Bytes.toBytes("cfmain"),
+                            Bytes.toBytes("retweetids")
+                    );
+                    String valueStr = Bytes.toString(value);
+
+                    page = valueStr.replace(",","\n");
+                    q3Cache.put(userid, page);
+                }
+
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                exchange.getResponseSender().send(page);
+            }
+        };
+
+
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
+        pathhandler.addPrefixPath("/q3", q3Handler);
+
         pathhandler.addPrefixPath("/", helloworld);
 
-        Undertow server = Undertow.builder().addHttpListener(8888, "localhost")
+        int port = 8080;
+        if(System.getenv("PORT") != null){
+            port = Integer.parseInt(System.getenv("PORT"));
+            System.out.println("Run On: "+ port);
+        }
+
+        Undertow server = Undertow.builder().addHttpListener(port, "localhost")
                 .setHandler(pathhandler).build();
         server.start();
     }
