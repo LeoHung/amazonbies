@@ -1,2 +1,4 @@
 export PORT=80
-export HBASE_SETTING_FILE=/Users/sanchuanhung/projects/cmu/cloud_computing/finalproject/undertow_server/undertow-server/hbase-site.xml
+export WARMUPQ1NUM=1000
+export HBASEIP=54.164.123.142
+export WARMUPQ3FILE=data/q3.small
