@@ -164,7 +164,7 @@ public class App {
                     throws Exception {
                 String key_str = exchange.getQueryParameters().get("key").getFirst();
                 String numberStr = q1Cache.get(key_str);
-		boolean isCached = (numberStr != null); 
+        		boolean isCached = (numberStr != null);
                 if(numberStr == null){
                     BigInteger key = new BigInteger(key_str);
                     BigInteger number = key.divide(publicKey);
@@ -178,16 +178,29 @@ public class App {
                 );
 
                 exchange.getResponseSender().send(output);
-		
-		if(!isCached){	
+
+        		if(!isCached){
                     q1Cache.put(key_str, numberStr);
-		}
-		
+        		}
             }
         };
 
+        HttpHandler q1SaveHandler = new HttpHandler(){
+            public void handleRequest(final HttpServerExchange exchange) throws Exception{
+                String timeStr = timeFormat.format(Calendar.getInstance().getTime());
+                String filename = "/tmp/q1Query_"+ timeStr +".txt";
+
+                PrintStream ps = new PrintStream(filename);
+                for(String key_str: q1Cache.keySet()){
+                    ps.println(key_str + "\t" + q1Cache.get(key_str));
+                }
+                ps.close();
+                exchange.getResponseSender().send("Finished..." + filename);
+            }
+        }
+
         // Q2 sql
-	System.out.println("Q2 SQL...start");
+    	System.out.println("Q2 SQL...start");
         final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         //final Connection sqlConn = SQLConnection.getSQLConnection();
         final Connection sqlConn = null;
@@ -228,7 +241,7 @@ public class App {
         };
 
         // Q2
-	System.out.println("Q2 hbse: start");
+    	System.out.println("Q2 hbse: start");
         final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>();
         //final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
         final HConnection q2hbaseConnection = null;
@@ -287,7 +300,7 @@ public class App {
 
         // Q3
         // /q3?userid=2495192362
-	System.out.println("Q3: start");
+    	System.out.println("Q3: start");
         final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
         warmUpQ3(q3Cache, q3WarmUpFile);
         //final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
@@ -369,9 +382,12 @@ public class App {
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
+        pathhandler.addPrefixPath("/q1Save", q1SaveHandler);
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
+
+
 
         pathhandler.addPrefixPath("/", helloworld);
 
