@@ -197,7 +197,7 @@ public class App {
                 ps.close();
                 exchange.getResponseSender().send("Finished..." + filename);
             }
-        }
+        };
 
         // Q2 sql
     	System.out.println("Q2 SQL...start");
