@@ -17,6 +17,8 @@ import java.sql.Statement;
 
 import java.util.concurrent.*;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.conf.Configuration;
@@ -32,11 +34,13 @@ import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
 import org.apache.hadoop.hbase.client.HTableInterface;
 
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
+
 
 class SQLConnection{
     static Connection mysqlConn=null;
@@ -66,23 +70,10 @@ class SQLConnection{
 
 
 class HBaseConnection{
-    public static HTable getQ2Table(){
-        // Configuration conf = HBaseConfiguration.create();
-        // conf.addResource(System.getenv("HBASE_SETTING_FILE"));
-        // HTable table = null;
-        // try{
-        //     table = new HTable(conf, "tweets");
-        // }catch( Exception e ){
-        //     e.printStackTrace();
-        // }
-        // return table;
-        return null;
-    }
 
     public static HConnection getHBConnection(String hbaseIp){
         Configuration conf = HBaseConfiguration.create();
         conf.set("hbase.zookeeper.quorum",hbaseIp);
-
         HConnection connection = null;
         try{
             connection = HConnectionManager.createConnection(conf);
@@ -100,7 +91,7 @@ class HBaseConnection{
 public class App {
 
     final static String teamLine = "Amazombies,jiajunwa,chiz2,sanchuah";
-
+    final static int teamLineLength = teamLine.length();
     final static BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
 
     public static void warmUpQ1(ConcurrentMap<String,String> q1Cache, BigInteger k){
@@ -115,6 +106,44 @@ public class App {
 	System.out.println("total: "+ number);
     }
 
+    public static void warmUpQ2(ConcurrentMap<String,String> q2Cache, HTableInterface q2table)throws Exception{
+        String startRow = "1000494338_2014-05-01+15:57:51";
+        String endRow = "1002275347_2014-05-13+00:16:12";
+
+        Scan scan = new Scan(Bytes.toBytes(startRow), Bytes.toBytes(endRow));
+        byte[] familyByte = Bytes.toBytes("cfmain");
+        byte[] tweetIdByte = Bytes.toBytes("tweetId");
+        byte[] sentimentScoreByte = Bytes.toBytes("sentimentScore");
+        byte[] censoredTextByte = Bytes.toBytes("censoredText");
+
+
+        scan.addColumn(familyByte, tweetIdByte);
+        scan.addColumn(familyByte, sentimentScoreByte);
+        scan.addColumn(familyByte, censoredTextByte);
+        ResultScanner rs = q2table.getScanner(scan);
+        int i = 0; 
+        for (Result r = rs.next(); r != null; r = rs.next()) {
+            if( i % 1000 == 0 ) { System.out.println("Q2 loading: " + i ); }            
+            i++;
+            byte[] rowObj = r.getRow();
+            byte[] tweetidObj = r.getValue(familyByte, tweetIdByte);
+            byte[] sentimentScoreObj = r.getValue(familyByte, sentimentScoreByte);
+            byte[] censoredTextObj = r.getValue(familyByte, censoredTextByte);
+            JSONObject textObj = new JSONObject(new String(censoredTextObj));
+            String textStr = textObj.getString("ct");
+
+            StringBuilder sb = new StringBuilder(teamLine);
+            sb.append("\n");
+            sb.append(new String(tweetidObj)); 
+            sb.append(":");
+            sb.append(new String(sentimentScoreObj)); 
+            sb.append(":");
+            sb.append(textObj);
+            sb.append("\n");
+            q2Cache.put(new String(rowObj), sb.toString());
+        } 
+    } 
+
     public static void warmUpQ3(ConcurrentMap<String,String> q3Cache, String q3File){
         try{
             BufferedReader bf = new BufferedReader(new FileReader(q3File));
@@ -123,15 +152,22 @@ public class App {
                 String[] tmp = line.split("\t");
                 String userid = tmp[0];
                 String retweetids = tmp[1];
-                String text = teamLine + "\n" + retweetids.replace(",", "\n");
-                q3Cache.put(userid, text);
+                //String text = teamLine + "\n" + retweetids.replace(",", "\n");
+                q3Cache.put(userid, retweetids.replace(",", "\n"));
             }
         }catch(Exception e){
             e.printStackTrace();
         }
+        System.out.println("Q3 total: "+ q3Cache.size());
     }
 
-    public static void main(final String[] args) {
+    public static void warmUpQ4(ConcurrentMap<String, List<String>> q4Cache, String q4File){
+        try{
+            BufferedReader bf = new BufferedReader(new FileReader(q4File));
+        }    
+    } 
+
+    public static void main(final String[] args) throws Exception{
 
         //parameters
         String warmUpQ1Num = System.getenv("WARMUPQ1NUM");
@@ -156,7 +192,7 @@ public class App {
 
         // Q1
         // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
-        final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>();
+        final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
         warmUpQ1(q1Cache, new BigInteger(warmUpQ1Num));
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
@@ -171,13 +207,20 @@ public class App {
                     numberStr = number.toString();
                 }
 
-                String output = String.format(
+                StringBuilder sb = new StringBuilder();
+                sb.append(numberStr);
+                sb.append("\n");
+                sb.append("Amazombies,jiajunwa,chiz2,sanchuah");
+                sb.append("\n");                
+                sb.append(timeFormat.format(Calendar.getInstance().getTime()));
+
+                /*String output = String.format(
                     "%s\nAmazombies,jiajunwa,chiz2,sanchuah\n%s",
                     numberStr,
                     timeFormat.format(Calendar.getInstance().getTime())
-                );
+                );*/
 
-                exchange.getResponseSender().send(output);
+                exchange.getResponseSender().send(sb.toString());
 
         		if(!isCached){
                     q1Cache.put(key_str, numberStr);
@@ -241,59 +284,89 @@ public class App {
         };
 
         // Q2
+        // /q2?userid=1473664038&tweet_time=2014-04-08+02:43:27
     	System.out.println("Q2 hbse: start");
-        final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>();
-        //final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
-        final HConnection q2hbaseConnection = null;
+        final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>(1000000);
+        final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
+        final HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
+        warmUpQ2(q2HbaseCache, q2HbaseTable);
+
+        final byte[] q2familyByte = Bytes.toBytes("cfmain");
+        final byte[] tweetIdByte = Bytes.toBytes("tweetId");
+        final byte[] sentimentScoreByte = Bytes.toBytes("sentimentScore");
+        final byte[] censoredTextByte = Bytes.toBytes("censoredText"); 
+
         HttpHandler q2HbaseHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
+                
+                //double startTime = System.currentTimeMillis();
+                //double getStart = 0.0;
+                //double getEnd = 0.0;    
+
+
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid + "_" + tweet_time;
 
                 String cachePage = q2HbaseCache.get(row_key);
+                boolean isCached = (cachePage!= null);
                 String page =null;
-                if(cachePage == null){
-                    HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
-
+                if(!isCached){
                     Get g = new Get(Bytes.toBytes(row_key));
+                    
+                   // getStart = System.currentTimeMillis();
                     Result r = q2HbaseTable.get(g);
+                   // getEnd = System.currentTimeMillis();                    
 
-                    page = teamLine +"\n";
+                    StringBuilder sb = new StringBuilder(teamLine);
+                    sb.append("\n");
                     if(!r.isEmpty()){
                         byte [] tweetidByte = r.getValue(
-                            Bytes.toBytes("cfmain"),
-                            Bytes.toBytes("tweetId")
+                            q2familyByte,
+                            tweetIdByte
                         );
                         String tweetidStr = Bytes.toString(tweetidByte);
 
                         byte [] scoreByte = r.getValue(
-                            Bytes.toBytes("cfmain"),
-                            Bytes.toBytes("sentimentScore")
+                            q2familyByte,
+                            sentimentScoreByte
                         );
                         String scoreInt = Bytes.toString(scoreByte);
 
                         byte [] jsonByte = r.getValue(
-                                Bytes.toBytes("cfmain"),
-                                Bytes.toBytes("censoredText")
+                            q2familyByte,
+                            censoredTextByte
                         );
                         String jsonStr = Bytes.toString(jsonByte);
                         JSONObject textObj = new JSONObject(jsonStr);
                         String textStr = textObj.getString("ct");
-                        page += tweetidStr + ":" + scoreInt + ":" + textStr +"\n";
+
+                        sb.append(tweetidStr);
+                        sb.append(":");
+                        sb.append(scoreInt);
+                        sb.append(":");
+                        sb.append(textStr);
+                        sb.append("\n");
+                        page = sb.toString();
                     }else{
-                        page += "";
+                        sb.append("");
+                        page = sb.toString();
                     }
-                    q2HbaseCache.put(userid, page);
-                    q2HbaseTable.close();
                 }else{
                     page = cachePage;
                 }
-
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
+                
                 exchange.getResponseSender().send(page);
+
+                //double endTime = System.currentTimeMillis();
+
+                //System.out.println(String.format("whole: %f, get: %f, (%f)" , endTime-startTime, getEnd - getStart, (getEnd-getStart)/ (endTime - startTime)));
+
+
+                if(!isCached){
+                    q2HbaseCache.put(userid, page);
+                }
             }
         };
 
@@ -301,84 +374,94 @@ public class App {
         // Q3
         // /q3?userid=2495192362
     	System.out.println("Q3: start");
-        final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
+        final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>(13888216);
+        System.out.println("Q3: warmup");
         warmUpQ3(q3Cache, q3WarmUpFile);
-        //final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
-        final HConnection q3connection = null;
+        System.out.println("Q3: get connection");
+        final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
+        //final HConnection q3connection = null;
         HttpHandler q3Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
-                String page = q3Cache.get(userid);
-                if(page ==null){
-                    HTableInterface q3Table = q3connection.getTable("tweetsq3");
-
+                String retweetids = q3Cache.get(userid);
+                boolean isCached = (retweetids != null);
+                HTableInterface q3Table = null;
+                if(!isCached){
+                    q3Table = q3connection.getTable("tweetsq3");
                     Get g = new Get(Bytes.toBytes(userid));
                     Result r = q3Table.get(g);
 
-                    page = teamLine +"\n";
                     if(!r.isEmpty()){
-                        byte [] value = r.getValue(
+                        byte [] retweeidsByte = r.getValue(
                                 Bytes.toBytes("cfmain"),
                                 Bytes.toBytes("retweetids")
                         );
-                        String valueStr = Bytes.toString(value);
-
-                        page += (valueStr.replace(",","\n")+"\n");
+                        retweetids = Bytes.toString(retweeidsByte);
+                        retweetids = retweetids.replace(",", "\n");
                     }else{
-                        page += "";
+                        retweetids = "";
                     }
-
-                    q3Cache.put(userid, page);
-                    q3Table.close();
                 }
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
-                exchange.getResponseSender().send(page);
+                
+                int outputLength = teamLineLength + 2 + retweetids.length(); 
+                StringBuilder sb = new StringBuilder(outputLength);
+                sb.append(teamLine);
+                sb.append("\n");
+                sb.append(retweetids);
+                sb.append(";");
+
+                exchange.getResponseSender().send(sb.toString());
+
+                if(!isCached){ 
+                    q3Cache.put(userid, retweetids);
+                    //q3Table.close();
+                }
             }
         };
 
         // Q4
-        // q4?date=2013-01-01&location=Pittsburgh&m=1&n=3
-        // final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
-        // final HConnection q4connection = HBaseConnection.getHBConnection();
-        // HttpHandler q4Handler = new HttpHandler(){
-        //     public void handleRequest(final HttpServerExchange exchange)
-        //             throws Exception {
-        //         String date = exchange.getQueryParameters().get("date").getFirst();
-        //         String location = exchange.getQueryParameters().get("location").getFirst();
-        //         String m = exchange.getQueryParameters().get("m").getFirst();
-        //         String n = exchange.getQueryParameters().get("n").getFirst();
+        // /q4?date=2014-05-22&location=Aalborg&m=1&n=3
+        final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
+        final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
+        HttpHandler q4Handler = new HttpHandler(){
+             public void handleRequest(final HttpServerExchange exchange)
+                     throws Exception {
+                 String date = exchange.getQueryParameters().get("date").getFirst();
+                 String location = exchange.getQueryParameters().get("location").getFirst();
+                 String mStr = exchange.getQueryParameters().get("m").getFirst();
+                 int m = Integer.parseInt(mStr);
+                 String nStr = exchange.getQueryParameters().get("n").getFirst();
+                 int n = Integer.parseInt(nStr);                 
+              
+                 StringBuilder sb = new StringBuilder();
+                 sb.append(teamLine);
+                 sb.append("\n"); 
+                 
+                 HTableInterface q4Table = q4connection.getTable("tweetsq4");
+                 List<Get> batchGets = new ArrayList<Get>();
+                 for(int i = m ; i <= n ; i++){
+                    String rowKey = String.format("%s_%s_%d", location, date, i);
+                    Get g = new Get(Bytes.toBytes(rowKey));
+                    batchGets.add(g);
+                 }
+                 
+                 Result[] rArray = q4Table.get(batchGets);
 
-        //         String page = q4Cache.get(date+"_"+location);
-        //         if(page ==null){
-        //             HTableInterface q4Table = q4connection.getTable("tweetsq4");
-        //             Get g = new Get(Bytes.toBytes(userid));
-        //             Result r = q3Table.get(g);
-
-        //             page = teamLine +"\n";
-        //             if(!r.isEmpty()){
-        //                 byte [] value = r.getValue(
-        //                         Bytes.toBytes("cfmain"),
-        //                         Bytes.toBytes("retweetids")
-        //                 );
-        //                 String valueStr = Bytes.toString(value);
-
-        //                 page += valueStr.replace(",","\n");
-        //             }else{
-        //                 page += "";
-        //             }
-        //             q4Cache.put(userid, page);
-        //             q4Table.close();
-        //         }
-
-        //         exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-        //                 "text/plain");
-        //         exchange.getResponseSender().send(page);
-        //     }
-        // };
-
+                 for(Result r: rArray){
+                    byte [] tagtweetid = r.getValue(
+                                Bytes.toBytes("cfmain"),
+                                Bytes.toBytes("tagtweetid")
+                    );
+                    sb.append(Bytes.toString(tagtweetid)); 
+                    sb.append("\n");
+                 }                   
+                  
+                 exchange.getResponseSender().send(sb.toString());
+             }
+        }; 
+        
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
@@ -386,8 +469,7 @@ public class App {
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
-
-
+        pathhandler.addPrefixPath("/q4", q4Handler);
 
         pathhandler.addPrefixPath("/", helloworld);
 
