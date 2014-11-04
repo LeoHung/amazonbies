@@ -1,6 +1,6 @@
 export PORT=80
-export WARMUPQ1NUM=2000000
-export HBASEIP=172.31.42.123
-export WARMUPQ3FILE=data/q3.small.small
-export WARMUPQ4FILE=data/q4.small
+export WARMUPQ1NUM=0
+export HBASEIP=null
+export WARMUPQ3FILE=data/q3.empty
+export WARMUPQ4FILE=data/q4.output
 export MAVEN_OPTS="-Xms4g -Xmx6g"
