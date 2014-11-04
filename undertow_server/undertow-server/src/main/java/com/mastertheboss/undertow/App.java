@@ -43,6 +43,103 @@ import org.json.JSONObject;
 import java.io.*;
 
 
+class Q4Cache{
+
+    class LocationTime{
+        public int locationId;
+        public long time;
+        public LocationTime(int locationId, long time){
+            this.locationId = locationId; this.time = time;
+        }
+    }
+    class TagIDTweetids{
+        public int tagId;
+        public ArrayList<Long> tweetids;
+        public TagIDTweetids(int tagId, ArrayList<Long> tweetids){
+            this.tagId = tagId;
+            this.tweetids = tweetids;
+        }
+    }
+
+    // location, time -> array of tag, tweetid
+    int maxLocationId=0;
+    int maxTagId= 0;
+    private ConcurrentMap<String, Integer> location2locationId;
+    private ConcurrentMap<Integer, String> tagId2tag;
+    private ConcurrentMap<String, Integer> tag2tagId;
+    private ConcurrentMap<LocationTime, Vector<TagIDTweetids>> locationTime2tagIDTweetids;
+
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+    public Q4Cache(){
+        location2locationId = new ConcurrentHashMap<String, Integer>();
+        tagId2tag = new ConcurrentHashMap<Integer, String>();
+        tag2tagId = new ConcurrentHashMap<String, Integer>();
+        locationTime2tagIDTweetids = new ConcurrentHashMap<LocationTime, Vector<TagIDTweetids>>();
+    }
+
+
+    public Integer getLocationId(String location){
+        Integer locationId = location2locationId.get(location);
+        if(locationId == null){
+            locationId = maxLocationId;
+            location2locationId.put(location, maxLocationId);
+            maxLocationId++;
+        }
+        return locationId;
+    }
+
+    public void put(String location, String time, String rankStr, String tagTweetids){
+        int rank = Integer.parseInt(rankStr) - 1;
+        // get location id
+        Integer locationId = getLocationId(location);
+
+        // convert time => time.sec
+        long timeDate = -1;
+        try{
+            timeDate = sdf.parse(time).getTime();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
+        // convert tag:id => tagid, Array(id)
+        String[] tmp = tagTweetids.split(":");
+        String tag = tmp[0];
+        String[] tweetidStrs = tmp[1].split(",");
+
+        Integer tagId = tag2tagId.get(tag);
+        if(tagId == null){
+            tagId = maxTagId;
+            tagId2tag.put(maxTagId, tag);
+            tag2tagId.put(tag, maxTagId);
+            maxTagId++;
+        }
+
+        ArrayList<Long> tweetids = new ArrayList<Long>();
+        for(String tweetidStr: tweetidStrs){
+            long tweetid = Long.parseLong(tweetidStr);
+            tweetids.add(tweetid);
+        }
+
+        TagIDTweetids tagIDTweetids = new TagIDTweetids(tagId, tweetids);
+        LocationTime locationTime = new LocationTime(locationId, timeDate);
+
+
+        if(!locationTime2tagIDTweetids.containsKey(locationTime)){
+            locationTime2tagIDTweetids.put(locationTime, new Vector<TagIDTweetids>());
+        }
+
+        Vector<TagIDTweetids> v_TagIDTweetids = locationTime2tagIDTweetids.get(locationTime);
+        if(v_TagIDTweetids.size() >= rank ){
+            v_TagIDTweetids.setSize(rank+1);
+        }
+        v_TagIDTweetids.add(rank, tagIDTweetids);
+
+    }
+
+}
+
+
 class Q3Cache{
     private ConcurrentMap<Long, ArrayList<Long>> cache;
 
