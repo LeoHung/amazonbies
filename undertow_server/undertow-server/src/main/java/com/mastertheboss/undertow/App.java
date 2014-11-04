@@ -43,6 +43,59 @@ import org.json.JSONObject;
 import java.io.*;
 
 
+class Q3Cache{
+    private ConcurrentMap<Long, ArrayList<Long>> cache;
+
+
+    public Q3Cache(){
+        cache = new ConcurrentHashMap<Long, ArrayList<Long>>();
+    }
+    public Q3Cache(int initialCapacity){
+        cache = new ConcurrentHashMap<Long, ArrayList<Long>>();
+    }
+
+    public int size(){
+        return cache.size();
+    }
+
+    public void put(String useridStr, String retweetidsStr){
+        long userid = Long.parseLong(useridStr);
+        String[] tmp = retweetidsStr.split(",");
+        ArrayList<Long> list = new ArrayList<Long>();
+        for(String idStr : tmp){
+            Long retweetid = (long)0;
+            if(idStr.charAt(0) == '('){
+                retweetid =  - Long.parseLong(idStr.substring(1, idStr.length()-1));
+            }else{
+                retweetid = Long.parseLong(idStr);
+            }
+            list.add(retweetid);
+        }
+        cache.put(userid, list);
+    }
+    public String get(String useridStr){
+        long userid = Long.parseLong(useridStr);
+        ArrayList<Long> retweetids = cache.get(userid);
+        if(retweetids == null){
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        for(Long id : retweetids){
+            if(id > 0){
+                sb.append(id);
+            }else{
+                sb.append("(");
+                sb.append(id);
+                sb.append(")");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+}
+
 class SQLConnection{
     static Connection mysqlConn=null;
 
@@ -147,7 +200,7 @@ public class App {
         }
     }
 
-    public static void warmUpQ3(ConcurrentMap<String,String> q3Cache, String q3File){
+    public static void warmUpQ3(Q3Cache q3Cache, String q3File){
         try{
             BufferedReader bf = new BufferedReader(new FileReader(q3File));
             String line = null;
@@ -155,8 +208,7 @@ public class App {
                 String[] tmp = line.split("\t");
                 String userid = tmp[0];
                 String retweetids = tmp[1];
-                //String text = teamLine + "\n" + retweetids.replace(",", "\n");
-                q3Cache.put(userid, retweetids.replace(",", "\n"));
+                q3Cache.put(userid, retweetids);
             }
         }catch(Exception e){
             e.printStackTrace();
@@ -408,7 +460,9 @@ public class App {
         // Q3
         // /q3?userid=2495192362
     	System.out.println("Q3: start");
-        final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>(13888216);
+        // final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>(13888216);
+        final Q3Cache q3Cache = new Q3Cache();
+
         System.out.println("Q3: warmup");
         warmUpQ3(q3Cache, q3WarmUpFile);
         System.out.println("Q3: get connection");
