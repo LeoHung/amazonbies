@@ -19,6 +19,7 @@ import java.util.concurrent.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Vector;
 
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.conf.Configuration;
@@ -108,7 +109,7 @@ public class App {
 
     public static void warmUpQ2(ConcurrentMap<String,String> q2Cache, HTableInterface q2table)throws Exception{
         String startRow = "1000494338_2014-05-01+15:57:51";
-        String endRow = "1002275347_2014-05-13+00:16:12";
+        String endRow = "1000494338_2014-05-01+15:57:51";
 
         Scan scan = new Scan(Bytes.toBytes(startRow), Bytes.toBytes(endRow));
         byte[] familyByte = Bytes.toBytes("cfmain");
@@ -161,10 +162,41 @@ public class App {
         System.out.println("Q3 total: "+ q3Cache.size());
     }
 
-    public static void warmUpQ4(ConcurrentMap<String, List<String>> q4Cache, String q4File){
+    public static void warmUpQ4(ConcurrentMap<String, Vector<String>> q4Cache, String q4File){
         try{
             BufferedReader bf = new BufferedReader(new FileReader(q4File));
-        }    
+            String line = null;
+            
+            while((line = bf.readLine()) != null){
+                String[] tmp = line.split("\t");
+                String locationDateRank = tmp[0];
+                String retweet = tmp[1];
+                String[] tmp2 = locationDateRank.split("_");
+                String location ="";
+                for( int i =0 ;i < tmp2.length -2 ; i++){
+                    if(i >0){
+                        location += "_";    
+                    }
+                    location += tmp2[i];
+                }
+                String date = tmp2[tmp2.length-2];
+                int rank = Integer.parseInt(tmp2[tmp2.length-1]);
+
+                String locationDate = location +"_"+ date;
+                if(!q4Cache.containsKey(locationDate)){
+                    q4Cache.put(locationDate, new Vector<String>());
+                } 
+                Vector<String> l = q4Cache.get(locationDate);
+                if( (rank-1) >= l.size()){
+                    l.setSize(rank-1+1);
+                }
+                l.insertElementAt(retweet, (rank-1));
+            }
+
+        }catch(Exception e ){
+            e.printStackTrace();
+        }
+        System.out.println("Q4 total: " + q4Cache.size());
     } 
 
     public static void main(final String[] args) throws Exception{
@@ -178,7 +210,7 @@ public class App {
         }
         String hbaseIp = System.getenv("HBASEIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
-
+        String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
 
         // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
@@ -289,7 +321,7 @@ public class App {
         final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>(1000000);
         final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
         final HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
-        warmUpQ2(q2HbaseCache, q2HbaseTable);
+        //warmUpQ2(q2HbaseCache, q2HbaseTable);
 
         final byte[] q2familyByte = Bytes.toBytes("cfmain");
         final byte[] tweetIdByte = Bytes.toBytes("tweetId");
@@ -425,6 +457,9 @@ public class App {
         // /q4?date=2014-05-22&location=Aalborg&m=1&n=3
         final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
         final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
+        final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>( 400000);
+        warmUpQ4(warmUpQ4cache, q4WarmUpFile); 
+
         HttpHandler q4Handler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
                      throws Exception {
@@ -438,25 +473,34 @@ public class App {
                  StringBuilder sb = new StringBuilder();
                  sb.append(teamLine);
                  sb.append("\n"); 
+                
+                 List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
+                 boolean isCached = (hashtagRetweets != null);
+                 if(!isCached){ 
+                    HTableInterface q4Table = q4connection.getTable("tweetsq4");
+                    List<Get> batchGets = new ArrayList<Get>();
+                    for(int i = m ; i <= n ; i++){
+                        String rowKey = String.format("%s_%s_%d", location, date, i);
+                        Get g = new Get(Bytes.toBytes(rowKey));
+                        batchGets.add(g);
+                    }
                  
-                 HTableInterface q4Table = q4connection.getTable("tweetsq4");
-                 List<Get> batchGets = new ArrayList<Get>();
-                 for(int i = m ; i <= n ; i++){
-                    String rowKey = String.format("%s_%s_%d", location, date, i);
-                    Get g = new Get(Bytes.toBytes(rowKey));
-                    batchGets.add(g);
-                 }
-                 
-                 Result[] rArray = q4Table.get(batchGets);
+                    Result[] rArray = q4Table.get(batchGets);
 
-                 for(Result r: rArray){
-                    byte [] tagtweetid = r.getValue(
-                                Bytes.toBytes("cfmain"),
-                                Bytes.toBytes("tagtweetid")
-                    );
-                    sb.append(Bytes.toString(tagtweetid)); 
-                    sb.append("\n");
-                 }                   
+                    for(Result r: rArray){
+                        byte [] tagtweetid = r.getValue(
+                                    Bytes.toBytes("cfmain"),
+                                    Bytes.toBytes("tagtweetid")
+                        );
+                        sb.append(Bytes.toString(tagtweetid)); 
+                        sb.append("\n");
+                    }            
+                 }else{
+                    for( int i = (m -1) ; i<= (n -1) ; i++){
+                        sb.append(hashtagRetweets.get(i));
+                        sb.append("\n");
+                    }
+                }         
                   
                  exchange.getResponseSender().send(sb.toString());
              }
