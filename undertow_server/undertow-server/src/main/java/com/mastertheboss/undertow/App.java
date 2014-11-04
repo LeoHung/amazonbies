@@ -9,6 +9,7 @@ import io.undertow.server.handlers.*;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.math.BigInteger;
+import java.util.Date;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -40,7 +41,45 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.nio.ByteBuffer;
+import org.apache.commons.codec.binary.Base64;
+
 import java.io.*;
+
+
+class Q2IndexConvertor{
+
+    static String thisline;
+    static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
+    static Date originDate ;
+
+    public byte[] longToBytes(long x) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(x);
+        return buffer.array();
+    }
+
+    public void initiateOriginDate() throws Exception
+    {
+        originDate = fmt.parse("2014-01-01+00:00:00");
+    }
+
+    public String convert(String text) throws Exception
+    {
+        String[] uidDtm = text.split("_");
+        Date dt = fmt.parse(uidDtm[1]);
+        Long seconds = (dt.getTime()-originDate.getTime())/1000;
+        Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
+        byte[] binaryData = longToBytes(dt_uid);
+        String encoded = Base64.encodeBase64String(binaryData);
+        return encoded;
+    }
+
+    public Q2IndexConvertor() throws Exception{
+        this.initiateOriginDate();
+    }
+
+}
 
 
 class Q4Cache{
@@ -473,6 +512,8 @@ public class App {
         final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
         //warmUpQ2(q2HbaseCache, q2HbaseTable);
 
+        final Q2IndexConvertor q2IndexConvertor = new Q2IndexConvertor();
+
         final byte[] q2familyByte = Bytes.toBytes("cfmain");
         final byte[] tweetIdByte = Bytes.toBytes("tweetId");
         final byte[] sentimentScoreByte = Bytes.toBytes("sentimentScore");
@@ -482,11 +523,6 @@ public class App {
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
 
-                //double startTime = System.currentTimeMillis();
-                //double getStart = 0.0;
-                //double getEnd = 0.0;
-
-
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid + "_" + tweet_time;
@@ -495,13 +531,13 @@ public class App {
                 boolean isCached = (cachePage!= null);
                 String page =null;
                 if(!isCached){
-                    HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
-                    Get g = new Get(Bytes.toBytes(row_key));
+                    // HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
+                    // Get g = new Get(Bytes.toBytes(row_key));
 
-                   // getStart = System.currentTimeMillis();
+                    HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
+                    Get g = new Get(Bytes.toBytes(q2IndexConvertor.convert(row_key)));
+
                     Result r = q2HbaseTable.get(g);
-                   // getEnd = System.currentTimeMillis();
-
                     StringBuilder sb = new StringBuilder(teamLine);
                     sb.append("\n");
                     if(!r.isEmpty()){
