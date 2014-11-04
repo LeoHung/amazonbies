@@ -279,7 +279,7 @@ public class App {
         // Q1
         // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
         final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
-        warmUpQ1(q1Cache, new BigInteger(warmUpQ1Num));
+        //warmUpQ1(q1Cache, new BigInteger(warmUpQ1Num));
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -372,7 +372,7 @@ public class App {
         // Q2
         // /q2?userid=1473664038&tweet_time=2014-04-08+02:43:27
     	System.out.println("Q2 hbse: start");
-        final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>(1000000);
+        final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>();
         final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
         //warmUpQ2(q2HbaseCache, q2HbaseTable);
 
@@ -462,7 +462,6 @@ public class App {
     	System.out.println("Q3: start");
         // final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>(13888216);
         final Q3Cache q3Cache = new Q3Cache();
-
         System.out.println("Q3: warmup");
         warmUpQ3(q3Cache, q3WarmUpFile);
         System.out.println("Q3: get connection");
@@ -513,7 +512,7 @@ public class App {
         // /q4?date=2014-05-22&location=Aalborg&m=1&n=3
         final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
         final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
-        final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>( 400000);
+        final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>();
         System.out.println("Q4 warmup: ");
         warmUpQ4(warmUpQ4cache, q4WarmUpFile);
         HttpHandler q4Handler = new HttpHandler(){
@@ -557,7 +556,8 @@ public class App {
                             sb.append(hashtagRetweets.get(i));
                             sb.append("\n");
                         }else{
-                            sb.append("null\n");
+                            sb.append("null");
+                            sb.append("\n");
                         }
                     }
                 }
