@@ -7,7 +7,7 @@
   <version>1.0-SNAPSHOT</version>
   <name>undertow-server</name>
   <url>http://maven.apache.org</url>
-  
+
    <repositories>
     <repository>
       <id>spy</id>
@@ -18,8 +18,8 @@
         <enabled>false</enabled>
       </snapshots>
     </repository>
-  </repositories>  
-  
+  </repositories>
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -71,10 +71,9 @@
     </dependency>
 
     <dependency>
-        <groupId>spy</groupId>
-        <artifactId>spymemcached</artifactId>
-        <version>2.8.1</version>
-        <scope>provided</scope>
+      <groupId>com.googlecode.xmemcached</groupId>
+      <artifactId>xmemcached</artifactId>
+      <version>1.2.5</version>
     </dependency>
 
   </dependencies>
