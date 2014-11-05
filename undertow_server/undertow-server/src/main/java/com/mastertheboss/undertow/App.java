@@ -46,6 +46,10 @@ import org.apache.commons.codec.binary.Base64;
 
 import java.io.*;
 
+import com.mastertheboss.undertow.memcached.MEMQ3Cache;
+import com.mastertheboss.undertow.memcached.MemcachedInitiator;
+import net.rubyeye.xmemcached.MemcachedClient;
+
 
 class Q2IndexConvertor{
 
@@ -708,10 +712,13 @@ public class App {
         // /q3?userid=2495192362
     	System.out.println("Q3: start");
         //final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
-        final Q3Cache q3Cache = new Q3Cache();
+        // final Q3Cache q3Cache = new Q3Cache();
+        final MemcachedClient mclient = MemcachedInitiator.getClient("localhost:11211", 100);
+        final MEMQ3Cache q3Cache = new MEMQ3Cache(mclient);
         System.out.println("Q3: warmup");
         //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
-        warmUpQ3(q3Cache, q3WarmUpFile);        
+        // warmUpQ3(q3Cache, q3WarmUpFile);
+        q3Cache.warmUp(q3WarmUpFile);
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
         //final HConnection q3connection = null;
