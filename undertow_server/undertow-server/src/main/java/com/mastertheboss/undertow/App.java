@@ -102,6 +102,9 @@ class Q4Cache{
             }
             return false;
         }
+        public int hashCode(){
+            return (int)locationId + (int)time;
+        }
     }
     class TagIDTweetids{
         public int tagId;
@@ -129,6 +132,9 @@ class Q4Cache{
         locationTime2tagIDTweetids = new ConcurrentHashMap<LocationTime, Vector<TagIDTweetids>>();
     }
 
+    public int size(){
+        return locationTime2tagIDTweetids.size();
+    }
 
     public Integer getLocationId(String location){
         Integer locationId = location2locationId.get(location);
@@ -167,7 +173,7 @@ class Q4Cache{
     }
 
     public void put(String location, String time, String rankStr, String tagTweetids){
-        int rank = Integer.parseInt(rankStr) - 1;
+        int rank = Integer.parseInt(rankStr) ;
         // get location id
         Integer locationId = getLocationId(location);
 
@@ -195,10 +201,10 @@ class Q4Cache{
         }
 
         Vector<TagIDTweetids> v_TagIDTweetids = locationTime2tagIDTweetids.get(locationTime);
-        if(v_TagIDTweetids.size() >= rank ){
-            v_TagIDTweetids.setSize(rank+1);
+        if(v_TagIDTweetids.size() <= rank-1 ){
+            v_TagIDTweetids.setSize(rank-1+1);
         }
-        v_TagIDTweetids.add(rank, tagIDTweetids);
+        v_TagIDTweetids.add(rank-1, tagIDTweetids);
 
     }
 
@@ -211,13 +217,22 @@ class Q4Cache{
         Vector<TagIDTweetids> tagTweetidsVector =
                 locationTime2tagIDTweetids.get(new LocationTime(locationId, time));
 
+
         if(tagTweetidsVector == null) return null;
 
         StringBuilder sb = new StringBuilder();
 
-        for(int i = m-1 ; i < n-1; i++){
-            if( i >= tagTweetidsVector.size()){sb.append("null");}
+        for(int i = m-1 ; i <= n-1; i++){
+            if( i >= tagTweetidsVector.size()){
+                sb.append("null\n");
+                continue;
+            }
             TagIDTweetids tagTweetids = tagTweetidsVector.get(i);
+            if(tagTweetids==null){
+                sb.append("null\n");
+                continue;
+            }
+
             String tag = getTag(tagTweetids.tagId);
             sb.append(tag);
             sb.append(":");
@@ -227,6 +242,7 @@ class Q4Cache{
                     sb.append(',');
                 }
             }
+            sb.append("\n");
         }
 
         return sb.toString();
@@ -415,10 +431,18 @@ public class App {
 
             while((line = bf.readLine()) != null){
                 String[] tmp = line.trim().split("\t");
-                String[] tmp1 = tmp[0].split("_");
-                String locationStr = tmp1[0];
-                String timeStr = tmp1[1];
-                String rankStr = tmp1[2];
+                String[] tmp2 = tmp[0].split("_");
+
+                String locationStr ="";
+                for( int i =0 ;i < tmp2.length -2 ; i++){
+                    if(i >0){
+                        locationStr += "_";
+                    }
+                    locationStr += tmp2[i];
+                }
+                String timeStr = tmp2[tmp2.length-2];
+                String rankStr = tmp2[tmp2.length-1];
+
                 String tagTweetids = tmp[1];
                 q4Cache.put(locationStr, timeStr, rankStr, tagTweetids);
             }
@@ -728,7 +752,6 @@ public class App {
         System.out.println("Q4 warmup: ");
         // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
         warmUpQ4Cache(myQ4Cache, q4WarmUpFile);
-
         HttpHandler q4Handler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
                      throws Exception {
@@ -744,7 +767,7 @@ public class App {
                  sb.append("\n");
 
                  // List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
-                 String hashtagRetweets = myQ4Cache.get(location, date, m, n);
+                 String hashtagRetweets = myQ4Cache.get(location, date, mStr, nStr);
 
 
                  boolean isCached = (hashtagRetweets != null);
