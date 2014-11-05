@@ -525,6 +525,8 @@ public class App {
         String hbaseIp = System.getenv("HBASEIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
+        String memcacheIp = System.getenv("MEMCACHEIP");
+
 
         // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
@@ -713,7 +715,7 @@ public class App {
     	System.out.println("Q3: start");
         //final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
         // final Q3Cache q3Cache = new Q3Cache();
-        final MemcachedClient mclient = MemcachedInitiator.getClient("localhost:11211", 100);
+        final MemcachedClient mclient = MemcachedInitiator.getClient(memcacheIp, 100);
         final MEMQ3Cache q3Cache = new MEMQ3Cache(mclient);
         System.out.println("Q3: warmup");
         //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
