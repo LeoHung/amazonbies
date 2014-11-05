@@ -45,6 +45,7 @@ import java.nio.ByteBuffer;
 import org.apache.commons.codec.binary.Base64;
 
 import java.io.*;
+import com.mastertheboss.undertow.peer.PeerServer;
 
 
 class Q2IndexConvertor{
@@ -509,6 +510,20 @@ public class App {
         System.out.println("Q4 total: " + q4Cache.size());
     }
 
+    public static void showEnvParams(
+        int port, String hbaseIp, String q3WarmUpFile, String q4WarmUpFile,
+        String nodeType, String q3ServerIP, String q4ServerIP){
+
+        System.out.println("Port: "+port);
+        System.out.println("hbaseIp: "+hbaseIp);
+        System.out.println("q3WarmUpFile: "+q3WarmUpFile);
+        System.out.println("q4WarmUpFile: "+q4WarmUpFile);
+        System.out.println("nodeType: "+nodeType);
+        System.out.println("q3ServerIP: "+q3ServerIP);
+        System.out.println("q4ServerIP: "+q4ServerIP);
+
+    }
+
     public static void main(final String[] args) throws Exception{
 
         //parameters
@@ -516,11 +531,15 @@ public class App {
         int port = 8080;
         if(System.getenv("PORT") != null){
             port = Integer.parseInt(System.getenv("PORT"));
-            System.out.println("Run On: "+ port);
         }
         String hbaseIp = System.getenv("HBASEIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
+        final String nodeType = System.getenv("NODETYPE"); // nodeType = Q3 or Q4
+        String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
+        String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
+
+        showEnvParams(port, hbaseIp, q3WarmUpFile, q4WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
         // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
@@ -711,44 +730,52 @@ public class App {
         final Q3Cache q3Cache = new Q3Cache();
         System.out.println("Q3: warmup");
         //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
-        warmUpQ3(q3Cache, q3WarmUpFile);        
+        warmUpQ3(q3Cache, q3WarmUpFile);
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
         //final HConnection q3connection = null;
+
+
+        final PeerServer q3Server = new PeerServer(q3ServerIP);
         HttpHandler q3Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
-                String retweetids = q3Cache.get(userid);
-                boolean isCached = (retweetids != null);
-                HTableInterface q3Table = null;
-                if(!isCached){
-                    q3Table = q3connection.getTable("tweetsq3");
-                    Get g = new Get(Bytes.toBytes(userid));
-                    Result r = q3Table.get(g);
 
-                    if(!r.isEmpty()){
-                        byte [] retweeidsByte = r.getValue(
-                                Bytes.toBytes("cfmain"),
-                                Bytes.toBytes("retweetids")
-                        );
-                        retweetids = Bytes.toString(retweeidsByte);
-                        retweetids = retweetids.replace(",", "\n");
-                    }else{
-                        retweetids = "";
+                if(!nodeType.equals("Q3")){
+                    String body = q3Server.getQ3(userid);
+                    if(body == null){body = teamLine;}
+                    exchange.getResponseSender().send(body);
+                }else{
+                    String retweetids = q3Cache.get(userid);
+                    boolean isCached = (retweetids != null);
+                    HTableInterface q3Table = null;
+                    if(!isCached){
+                        q3Table = q3connection.getTable("tweetsq3");
+                        Get g = new Get(Bytes.toBytes(userid));
+                        Result r = q3Table.get(g);
+
+                        if(!r.isEmpty()){
+                            byte [] retweeidsByte = r.getValue(
+                                    Bytes.toBytes("cfmain"),
+                                    Bytes.toBytes("retweetids")
+                            );
+                            retweetids = Bytes.toString(retweeidsByte);
+                            retweetids = retweetids.replace(",", "\n");
+                        }else{
+                            retweetids = "";
+                        }
                     }
+
+                    int outputLength = teamLineLength + 2 + retweetids.length();
+                    StringBuilder sb = new StringBuilder(outputLength);
+                    sb.append(teamLine);
+                    sb.append("\n");
+                    sb.append(retweetids);
+                    sb.append("\n");
+
+                    exchange.getResponseSender().send(sb.toString());
                 }
-
-
-                int outputLength = teamLineLength + 2 + retweetids.length();
-                StringBuilder sb = new StringBuilder(outputLength);
-                sb.append(teamLine);
-                sb.append("\n");
-                sb.append(retweetids);
-                sb.append("\n");
-
-                exchange.getResponseSender().send(sb.toString());
-
                 /*
                 if(!isCached){
                     q3Cache.put(userid, retweetids.replace("\n", ","));
@@ -763,63 +790,72 @@ public class App {
         // final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
         final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
         final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>();
-        final Q4Cache myQ4Cache = new Q4Cache();
+        // final Q4Cache myQ4Cache = new Q4Cache();
+        final PeerServer q4Server = new PeerServer(q4ServerIP);
 
         System.out.println("Q4 warmup: ");
-        // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
-        warmUpQ4Cache(myQ4Cache, q4WarmUpFile);
+        warmUpQ4(warmUpQ4cache, q4WarmUpFile);
+        // warmUpQ4Cache(myQ4Cache, q4WarmUpFile);
         HttpHandler q4Handler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
                      throws Exception {
-                 String date = exchange.getQueryParameters().get("date").getFirst();
-                 String location = exchange.getQueryParameters().get("location").getFirst();
-                 String mStr = exchange.getQueryParameters().get("m").getFirst();
-                 int m = Integer.parseInt(mStr);
-                 String nStr = exchange.getQueryParameters().get("n").getFirst();
-                 int n = Integer.parseInt(nStr);
+                String date = exchange.getQueryParameters().get("date").getFirst();
+                String location = exchange.getQueryParameters().get("location").getFirst();
+                String mStr = exchange.getQueryParameters().get("m").getFirst();
+                int m = Integer.parseInt(mStr);
+                String nStr = exchange.getQueryParameters().get("n").getFirst();
+                int n = Integer.parseInt(nStr);
 
-                 StringBuilder sb = new StringBuilder();
-                 sb.append(teamLine);
-                 sb.append("\n");
+                if(!nodeType.equals("Q4")){
+                    String body = q4Server.getQ4(location, date, mStr, nStr);
+                    if(body == null){
+                        body = teamLine + "\n";
+                    }
+                    exchange.getResponseSender().send(body);
+                }else{
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(teamLine);
+                    sb.append("\n");
 
-                 // List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
-                 String hashtagRetweets = myQ4Cache.get(location, date, mStr, nStr);
 
+                    List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
+                    // String hashtagRetweets = myQ4Cache.get(location, date, mStr, nStr);
 
-                 boolean isCached = (hashtagRetweets != null);
-                 if(!isCached){
-                    HTableInterface q4Table = q4connection.getTable("tweetsq4");
-                    List<Get> batchGets = new ArrayList<Get>();
-                    for(int i = m ; i <= n ; i++){
-                        String rowKey = String.format("%s_%s_%d", location, date, i);
-                        Get g = new Get(Bytes.toBytes(rowKey));
-                        batchGets.add(g);
+                    boolean isCached = (hashtagRetweets != null);
+                    if(!isCached){
+                        HTableInterface q4Table = q4connection.getTable("tweetsq4");
+                        List<Get> batchGets = new ArrayList<Get>();
+                        for(int i = m ; i <= n ; i++){
+                            String rowKey = String.format("%s_%s_%d", location, date, i);
+                            Get g = new Get(Bytes.toBytes(rowKey));
+                            batchGets.add(g);
+                        }
+
+                        Result[] rArray = q4Table.get(batchGets);
+
+                        for(Result r: rArray){
+                            byte [] tagtweetid = r.getValue(
+                                        Bytes.toBytes("cfmain"),
+                                        Bytes.toBytes("tagtweetid")
+                            );
+                            sb.append(Bytes.toString(tagtweetid));
+                            sb.append("\n");
+                        }
+                    }else{
+                        for( int i = (m -1) ; i<= (n -1) ; i++){
+                            if(i < hashtagRetweets.size()){
+                                sb.append(hashtagRetweets.get(i));
+                                sb.append("\n");
+                            }else{
+                                sb.append("null");
+                                sb.append("\n");
+                            }
+                        }
+                        // sb.append(hashtagRetweets);
                     }
 
-                    Result[] rArray = q4Table.get(batchGets);
-
-                    for(Result r: rArray){
-                        byte [] tagtweetid = r.getValue(
-                                    Bytes.toBytes("cfmain"),
-                                    Bytes.toBytes("tagtweetid")
-                        );
-                        sb.append(Bytes.toString(tagtweetid));
-                        sb.append("\n");
-                    }
-                 }else{
-                    // for( int i = (m -1) ; i<= (n -1) ; i++){
-                    //     if(i < hashtagRetweets.size()){
-                    //         sb.append(hashtagRetweets.get(i));
-                    //         sb.append("\n");
-                    //     }else{
-                    //         sb.append("null");
-                    //         sb.append("\n");
-                    //     }
-                    // }
-                    sb.append(hashtagRetweets);
+                    exchange.getResponseSender().send(sb.toString());
                 }
-
-                 exchange.getResponseSender().send(sb.toString());
              }
         };
 
