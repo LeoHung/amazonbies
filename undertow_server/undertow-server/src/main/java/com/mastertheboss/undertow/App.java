@@ -54,7 +54,9 @@ class Q2IndexConvertor{
     static Date originDate ;
 
     public byte[] longToBytes(long x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        ByteBuffer buffer = null;
+        //buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer = ByteBuffer.allocate( 8 );
         buffer.putLong(x);
         return buffer.array();
     }
@@ -72,7 +74,10 @@ class Q2IndexConvertor{
         Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
         byte[] binaryData = longToBytes(dt_uid);
         String encoded = Base64.encodeBase64String(binaryData);
-        return encoded;
+        int ln = encoded.length();
+        String a = encoded.substring(0,ln/2);
+        String b = encoded.substring(ln/2,ln);
+        return b+a;
     }
 
     public Q2IndexConvertor() throws Exception{
@@ -535,7 +540,8 @@ public class App {
                     // Get g = new Get(Bytes.toBytes(row_key));
 
                     HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
-                    Get g = new Get(Bytes.toBytes(q2IndexConvertor.convert(row_key)));
+                    String encoded_rowkey = q2IndexConvertor.convert(row_key); 
+                    Get g = new Get(Bytes.toBytes(encoded_rowkey));
 
                     Result r = q2HbaseTable.get(g);
                     StringBuilder sb = new StringBuilder(teamLine);
