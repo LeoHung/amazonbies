@@ -1,0 +1,9 @@
+export PORT=80
+export WARMUPQ1NUM=0
+export HBASEIP=null
+export WARMUPQ3FILE=data/q3.empty
+export WARMUPQ4FILE=data/q4.output
+export Q3SERVERIP=http://localhost:8080
+export Q4SERVERIP=http://localhost:8888
+export NODETYPE=Q4
+export MAVEN_OPTS="-Xms4g -Xmx6g"
