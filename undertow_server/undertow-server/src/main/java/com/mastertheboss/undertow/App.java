@@ -272,15 +272,18 @@ class Q3Cache{
 
         StringBuilder sb = new StringBuilder();
 
-        for(Long id : retweetids){
+        for(int i = 0; i < retweetids.size(); i++){
+            Long id = retweetids.get(i);
             if(id > 0){
                 sb.append(id);
             }else{
                 sb.append("(");
-                sb.append(id);
+                sb.append(-id);
                 sb.append(")");
             }
-            sb.append("\n");
+            if( i < retweetids.size() -1){
+                sb.append("\n");
+            }
         }
         return sb.toString();
     }
@@ -390,6 +393,22 @@ public class App {
         }
     }
 
+    public static void warmUpQ3ConncurrentMap(ConcurrentMap<String, String> q3Cache, String q3File){
+        try{
+            BufferedReader bf = new BufferedReader(new FileReader(q3File));
+            String line = null;
+            while((line = bf.readLine()) != null){
+                String[] tmp = line.split("\t");
+                String userid = tmp[0];
+                String retweetids = tmp[1];
+                q3Cache.put(userid, retweetids);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        System.out.println("Q3 total: "+ q3Cache.size());
+    }
+
     public static void warmUpQ3(Q3Cache q3Cache, String q3File){
         try{
             BufferedReader bf = new BufferedReader(new FileReader(q3File));
@@ -489,12 +508,6 @@ public class App {
                 sb.append("Amazombies,jiajunwa,chiz2,sanchuah");
                 sb.append("\n");
                 sb.append(timeFormat.format(Calendar.getInstance().getTime()));
-
-                /*String output = String.format(
-                    "%s\nAmazombies,jiajunwa,chiz2,sanchuah\n%s",
-                    numberStr,
-                    timeFormat.format(Calendar.getInstance().getTime())
-                );*/
 
                 exchange.getResponseSender().send(sb.toString());
 
@@ -648,10 +661,11 @@ public class App {
         // Q3
         // /q3?userid=2495192362
     	System.out.println("Q3: start");
-        // final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>(13888216);
+        //final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
         final Q3Cache q3Cache = new Q3Cache();
         System.out.println("Q3: warmup");
-        warmUpQ3(q3Cache, q3WarmUpFile);
+        //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
+        warmUpQ3(q3Cache, q3WarmUpFile);        
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
         //final HConnection q3connection = null;
@@ -685,14 +699,16 @@ public class App {
                 sb.append(teamLine);
                 sb.append("\n");
                 sb.append(retweetids);
-                sb.append(";");
+                sb.append("\n");
 
                 exchange.getResponseSender().send(sb.toString());
 
+                /*
                 if(!isCached){
-                    q3Cache.put(userid, retweetids);
+                    q3Cache.put(userid, retweetids.replace("\n", ","));
                     //q3Table.close();
                 }
+                */
             }
         };
 
