@@ -54,7 +54,9 @@ class Q2IndexConvertor{
     static Date originDate ;
 
     public byte[] longToBytes(long x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        ByteBuffer buffer = null;
+        //buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer = ByteBuffer.allocate( 8 );
         buffer.putLong(x);
         return buffer.array();
     }
@@ -587,7 +589,8 @@ public class App {
                     // Get g = new Get(Bytes.toBytes(row_key));
 
                     HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
-                    Get g = new Get(Bytes.toBytes(q2IndexConvertor.convert(row_key)));
+                    String encoded_rowkey = q2IndexConvertor.convert(row_key); 
+                    Get g = new Get(Bytes.toBytes(encoded_rowkey));
 
                     Result r = q2HbaseTable.get(g);
                     StringBuilder sb = new StringBuilder(teamLine);
