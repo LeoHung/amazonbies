@@ -72,7 +72,10 @@ class Q2IndexConvertor{
         Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
         byte[] binaryData = longToBytes(dt_uid);
         String encoded = Base64.encodeBase64String(binaryData);
-        return encoded;
+        int ln = encoded.length();
+        String a = encoded.substring(0,ln/2);
+        String b = encoded.substring(ln/2,ln);
+        return b+a;
     }
 
     public Q2IndexConvertor() throws Exception{
@@ -89,6 +92,13 @@ class Q4Cache{
         public long time;
         public LocationTime(int locationId, long time){
             this.locationId = locationId; this.time = time;
+        }
+        public boolean equals(Object obj) {
+            LocationTime lt2 = (LocationTime) obj;
+            if(lt2.locationId == this.locationId && lt2.time == this.time){
+                return true;
+            }
+            return false;
         }
     }
     class TagIDTweetids{
@@ -128,24 +138,12 @@ class Q4Cache{
         return locationId;
     }
 
-    public void put(String location, String time, String rankStr, String tagTweetids){
-        int rank = Integer.parseInt(rankStr) - 1;
-        // get location id
-        Integer locationId = getLocationId(location);
+    public String getTag(int tagId){
+        String tag = tagId2tag.get(tagId);
+        return tag;
+    }
 
-        // convert time => time.sec
-        long timeDate = -1;
-        try{
-            timeDate = sdf.parse(time).getTime();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-
-        // convert tag:id => tagid, Array(id)
-        String[] tmp = tagTweetids.split(":");
-        String tag = tmp[0];
-        String[] tweetidStrs = tmp[1].split(",");
-
+    public Integer getTagId(String tag){
         Integer tagId = tag2tagId.get(tag);
         if(tagId == null){
             tagId = maxTagId;
@@ -153,6 +151,33 @@ class Q4Cache{
             tag2tagId.put(tag, maxTagId);
             maxTagId++;
         }
+        return tagId;
+    }
+
+    public long getTime(String time){
+        long timeDate = -1;
+        try{
+            timeDate = sdf.parse(time).getTime();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return timeDate;
+    }
+
+    public void put(String location, String time, String rankStr, String tagTweetids){
+        int rank = Integer.parseInt(rankStr) - 1;
+        // get location id
+        Integer locationId = getLocationId(location);
+
+        // convert time => time.sec
+        long timeDate = getTime(time);
+
+        // convert tag:id => tagid, Array(id)
+        String[] tmp = tagTweetids.split(":");
+        String tag = tmp[0];
+        String[] tweetidStrs = tmp[1].split(",");
+
+        Integer tagId = getTagId(tag);
 
         ArrayList<Long> tweetids = new ArrayList<Long>();
         for(String tweetidStr: tweetidStrs){
@@ -162,7 +187,6 @@ class Q4Cache{
 
         TagIDTweetids tagIDTweetids = new TagIDTweetids(tagId, tweetids);
         LocationTime locationTime = new LocationTime(locationId, timeDate);
-
 
         if(!locationTime2tagIDTweetids.containsKey(locationTime)){
             locationTime2tagIDTweetids.put(locationTime, new Vector<TagIDTweetids>());
@@ -174,6 +198,34 @@ class Q4Cache{
         }
         v_TagIDTweetids.add(rank, tagIDTweetids);
 
+    }
+
+    public String get(String location, String timeStr, String mStr, String nStr){
+        int locationId = getLocationId(location);
+        long time = getTime(timeStr);
+        int m = Integer.parseInt(mStr);
+        int n = Integer.parseInt(nStr);
+
+        Vector<TagIDTweetids> tagTweetidsVector = locationTime2tagIDTweetids.get(new LocationTime(location, timeStr));
+        if(tagTweetids == null) return null;
+
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = m-1 ; i < n-1; i++){
+            if( i >= tagTweetidsVector.size()){sb.append("null");}
+            TagIDTweetids tagTweetids = tagTweetidsVector.get(i);
+            Strign tag = getTag(tagTweetids.tagId);
+            sb.append(tagId);
+            sb.append(":");
+            for( int i = 0 ; i < tagTweetids.tweetids.length ; i++){
+                sb.append(tweetid);
+                if(i < tagTweetids.tweetids.length -1){
+                    sb.append(',');
+                }
+            }
+        }
+
+        return sb.toString();
     }
 
 }
