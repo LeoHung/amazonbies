@@ -815,7 +815,7 @@ public class App {
                 int m = Integer.parseInt(mStr);
                 String nStr = exchange.getQueryParameters().get("n").getFirst();
                 int n = Integer.parseInt(nStr);
-
+                 
                 if(!nodeType.equals("Q4")){
                     String body = q4Server.getQ4(location, date, mStr, nStr);
                     if(body == null){
@@ -823,6 +823,7 @@ public class App {
                     }
                     exchange.getResponseSender().send(body);
                 }else{
+                
                     StringBuilder sb = new StringBuilder();
                     sb.append(teamLine);
                     sb.append("\n");
@@ -852,22 +853,24 @@ public class App {
                             sb.append("\n");
                         }
                     }else{
-                        for( int i = (m -1) ; i<= (n -1) ; i++){
-                            if(i < hashtagRetweets.size()){
+                        int hashtagRetweetsSize = hashtagRetweets.size();
+                        for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
+//                            if(i < hashtagRetweets.size()){
                                 sb.append(hashtagRetweets.get(i));
                                 sb.append("\n");
-                            }else{
-                                sb.append("null");
-                                sb.append("\n");
-                            }
+//                            }else{
+//                                sb.append("null");
+//                                sb.append("\n");
+//                            }
                         }
                         // sb.append(hashtagRetweets);
                     }
 
                     exchange.getResponseSender().send(sb.toString());
-                }
+                 }
              }
         };
+
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
