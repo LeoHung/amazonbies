@@ -47,7 +47,7 @@ import org.apache.commons.codec.binary.Base64;
 import java.io.*;
 import com.mastertheboss.undertow.peer.PeerServer;
 
-
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 class Q2IndexConvertor{
 
     static String thisline;
@@ -342,7 +342,10 @@ class HBaseConnection{
 
         Configuration conf = HBaseConfiguration.create();
         conf.set("hbase.zookeeper.quorum",hbaseIp);
+        conf.setInt("hbase.htable.threads.max", Integer.MAX_VALUE);
         conf.setInt("hbase.client.ipc.pool.size", Integer.MAX_VALUE );
+        conf.set("hbase.client.ipc.pool.type","RoundRobin");
+
         HConnection connection = null;
         try{
             connection = HConnectionManager.createConnection(conf);
@@ -711,6 +714,8 @@ public class App {
                         sb.append("");
                         page = sb.toString();
                     }
+
+                    q2HbaseTable.close() ;
                 }else{
                     page = cachePage;
                 }
