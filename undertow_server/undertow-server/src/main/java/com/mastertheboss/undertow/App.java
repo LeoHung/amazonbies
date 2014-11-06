@@ -342,8 +342,8 @@ class HBaseConnection{
 
         Configuration conf = HBaseConfiguration.create();
         conf.set("hbase.zookeeper.quorum",hbaseIp);
-        conf.setInt("hbase.htable.threads.max", Integer.MAX_VALUE);
-        conf.setInt("hbase.client.ipc.pool.size", Integer.MAX_VALUE );
+        conf.setInt("hbase.htable.threads.max", 90);
+        conf.setInt("hbase.client.ipc.pool.size", 90 );
         conf.set("hbase.client.ipc.pool.type","RoundRobin");
 
         HConnection connection = null;
@@ -365,6 +365,25 @@ public class App {
     final static String teamLine = "Amazombies,jiajunwa,chiz2,sanchuah";
     final static int teamLineLength = teamLine.length();
     final static BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
+
+    static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
+    public static boolean isDate(String dateStr)throws Exception{
+        try{
+            if(fmt.parse(dateStr) == null){return false;}
+            return true; 
+        }catch(Exception e){
+            return false;
+        }
+    } 
+
+    public static boolean isLong(String longStr){
+        try{
+            Long.parseLong(longStr);
+            return true;
+        }catch(Exception e){
+            return false;
+        }
+    }
 
     public static void warmUpQ1(ConcurrentMap<String,String> q1Cache, BigInteger k){
         BigInteger key = new BigInteger("0");
@@ -663,6 +682,11 @@ public class App {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid + "_" + tweet_time;
+                
+                if(userid == null || !isLong(userid) || tweet_time == null || !isDate(tweet_time)){
+                    exchange.getResponseSender().send(teamLine);
+                    return;
+                } 
 
                 String cachePage = q2HbaseCache.get(row_key);
                 boolean isCached = (cachePage!= null);
@@ -737,6 +761,7 @@ public class App {
         // /q3?userid=2495192362
     	System.out.println("Q3: start");
         //final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
+        //final ConcurrentMap<String, String> q3StringCache = new ConcurrentHashMap<String, String>();
         final Q3Cache q3Cache = new Q3Cache();
         System.out.println("Q3: warmup");
         //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
@@ -744,8 +769,6 @@ public class App {
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
         //final HConnection q3connection = null;
-
-
         final PeerServer q3Server = new PeerServer(q3ServerIP);
         HttpHandler q3Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -753,9 +776,9 @@ public class App {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
 
                 if(!nodeType.equals("Q3")){
-                    String body = q3Server.getQ3(userid);
-                    if(body == null){body = teamLine;}
-                    exchange.getResponseSender().send(body);
+                        String body = q3Server.getQ3(userid);
+                        if(body == null){body = teamLine;}
+                        exchange.getResponseSender().send(body);
                 }else{
                     String retweetids = q3Cache.get(userid);
                     boolean isCached = (retweetids != null);
