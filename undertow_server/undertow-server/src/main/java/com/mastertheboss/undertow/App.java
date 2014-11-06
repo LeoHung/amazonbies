@@ -342,6 +342,7 @@ class HBaseConnection{
 
         Configuration conf = HBaseConfiguration.create();
         conf.set("hbase.zookeeper.quorum",hbaseIp);
+        conf.setInt("hbase.client.ipc.pool.size", Integer.MAX_VALUE );
         HConnection connection = null;
         try{
             connection = HConnectionManager.createConnection(conf);
@@ -664,12 +665,16 @@ public class App {
                 boolean isCached = (cachePage!= null);
                 String page =null;
                 if(!isCached){
-                    // HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
-                    // Get g = new Get(Bytes.toBytes(row_key));
+                    HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweets");
+                    Get g = new Get(Bytes.toBytes(row_key));
+                    g.addColumn(q2familyByte, tweetIdByte);
+                    g.addColumn(q2familyByte, sentimentScoreByte);
+                    g.addColumn(q2familyByte, censoredTextByte);
+                    //g.setCacheBlocks(true);
 
-                    HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
-                    String encoded_rowkey = q2IndexConvertor.convert(row_key);
-                    Get g = new Get(Bytes.toBytes(encoded_rowkey));
+                    //HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
+                    //String encoded_rowkey = q2IndexConvertor.convert(row_key);
+                    //Get g = new Get(Bytes.toBytes(encoded_rowkey));
 
                     Result r = q2HbaseTable.get(g);
                     StringBuilder sb = new StringBuilder(teamLine);
