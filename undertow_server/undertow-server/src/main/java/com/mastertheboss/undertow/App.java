@@ -342,9 +342,9 @@ class HBaseConnection{
 
         Configuration conf = HBaseConfiguration.create();
         conf.set("hbase.zookeeper.quorum",hbaseIp);
-        conf.setInt("hbase.htable.threads.max", 90);
-        conf.setInt("hbase.client.ipc.pool.size", 90 );
-        conf.set("hbase.client.ipc.pool.type","RoundRobin");
+        //conf.setInt("hbase.htable.threads.max", 90);
+        //conf.setInt("hbase.client.ipc.pool.size", 90 );
+        //conf.set("hbase.client.ipc.pool.type","RoundRobin");
 
         HConnection connection = null;
         try{
@@ -390,11 +390,10 @@ public class App {
         BigInteger number = new BigInteger("0");
         while(k.compareTo(number) > 0){
             q1Cache.put(key.toString(), number.toString());
-            //System.out.println("key: "+ key +" Number: " + number);
             number = number.add(new BigInteger("1"));
             key =  key.add(publicKey);
         }
-	System.out.println("total: "+ number);
+    	System.out.println("total: "+ number);
     }
 
     public static void warmUpQ2(ConcurrentMap<String,String> q2Cache, HTableInterface q2table)throws Exception{
@@ -667,7 +666,6 @@ public class App {
         final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>();
         final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
         //warmUpQ2(q2HbaseCache, q2HbaseTable);
-
         final Q2IndexConvertor q2IndexConvertor = new Q2IndexConvertor();
 
         final byte[] q2familyByte = Bytes.toBytes("cfmain");
@@ -679,6 +677,7 @@ public class App {
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
 
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");                
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid + "_" + tweet_time;
