@@ -878,8 +878,11 @@ public class App {
                         int hashtagRetweetsSize = hashtagRetweets.size();
                         for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
 //                            if(i < hashtagRetweets.size()){
-                                sb.append(hashtagRetweets.get(i));
+                              String tagText = hashtagRetweets.get(i) ;
+                              if(tagText != null){
+                                sb.append(tagText);
                                 sb.append("\n");
+                              }
 //                            }else{
 //                                sb.append("null");
 //                                sb.append("\n");
