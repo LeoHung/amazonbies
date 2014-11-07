@@ -36,6 +36,7 @@ import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
 import org.apache.hadoop.hbase.client.HTableInterface;
 
+import java.io.*;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,317 +45,13 @@ import org.json.JSONObject;
 import java.nio.ByteBuffer;
 import org.apache.commons.codec.binary.Base64;
 
-import java.io.*;
-import com.mastertheboss.undertow.peer.PeerServer;
-
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-class Q2IndexConvertor{
 
-    static String thisline;
-    static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
-    static Date originDate ;
+import com.mastertheboss.undertow.peer.PeerServer;
+import com.mastertheboss.undertow.cache.*;
+import com.mastertheboss.undertow.myutils.*;
+import com.mastertheboss.undertow.connection.*;
 
-    public byte[] longToBytes(long x) {
-        ByteBuffer buffer = null;
-        //buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer = ByteBuffer.allocate( 8 );
-        buffer.putLong(x);
-        return buffer.array();
-    }
-
-    public void initiateOriginDate() throws Exception
-    {
-        originDate = fmt.parse("2014-01-01+00:00:00");
-    }
-
-    public String convert(String text) throws Exception
-    {
-        String[] uidDtm = text.split("_");
-        Date dt = fmt.parse(uidDtm[1]);
-        Long seconds = (dt.getTime()-originDate.getTime())/1000;
-        Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
-        byte[] binaryData = longToBytes(dt_uid);
-        String encoded = Base64.encodeBase64String(binaryData);
-        int ln = encoded.length();
-        String a = encoded.substring(0,ln/2);
-        String b = encoded.substring(ln/2,ln);
-        return b+a;
-    }
-
-    public Q2IndexConvertor() throws Exception{
-        this.initiateOriginDate();
-    }
-
-}
-
-
-class Q4Cache{
-
-    class LocationTime{
-        public int locationId;
-        public long time;
-        public LocationTime(int locationId, long time){
-            this.locationId = locationId; this.time = time;
-        }
-        public boolean equals(Object obj) {
-            LocationTime lt2 = (LocationTime) obj;
-            if(lt2.locationId == this.locationId && lt2.time == this.time){
-                return true;
-            }
-            return false;
-        }
-        public int hashCode(){
-            return (int)locationId + (int)time;
-        }
-    }
-    class TagIDTweetids{
-        public int tagId;
-        public ArrayList<Long> tweetids;
-        public TagIDTweetids(int tagId, ArrayList<Long> tweetids){
-            this.tagId = tagId;
-            this.tweetids = tweetids;
-        }
-    }
-
-    // location, time -> array of tag, tweetid
-    int maxLocationId=0;
-    int maxTagId= 0;
-    private ConcurrentMap<String, Integer> location2locationId;
-    private ConcurrentMap<Integer, String> tagId2tag;
-    private ConcurrentMap<String, Integer> tag2tagId;
-    private ConcurrentMap<LocationTime, Vector<TagIDTweetids>> locationTime2tagIDTweetids;
-
-    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-
-    public Q4Cache(){
-        location2locationId = new ConcurrentHashMap<String, Integer>();
-        tagId2tag = new ConcurrentHashMap<Integer, String>();
-        tag2tagId = new ConcurrentHashMap<String, Integer>();
-        locationTime2tagIDTweetids = new ConcurrentHashMap<LocationTime, Vector<TagIDTweetids>>();
-    }
-
-    public int size(){
-        return locationTime2tagIDTweetids.size();
-    }
-
-    public Integer getLocationId(String location){
-        Integer locationId = location2locationId.get(location);
-        if(locationId == null){
-            locationId = maxLocationId;
-            location2locationId.put(location, maxLocationId);
-            maxLocationId++;
-        }
-        return locationId;
-    }
-
-    public String getTag(int tagId){
-        String tag = tagId2tag.get(tagId);
-        return tag;
-    }
-
-    public Integer getTagId(String tag){
-        Integer tagId = tag2tagId.get(tag);
-        if(tagId == null){
-            tagId = maxTagId;
-            tagId2tag.put(maxTagId, tag);
-            tag2tagId.put(tag, maxTagId);
-            maxTagId++;
-        }
-        return tagId;
-    }
-
-    public long getTime(String time){
-        long timeDate = -1;
-        try{
-            timeDate = sdf.parse(time).getTime();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-        return timeDate;
-    }
-
-    public void put(String location, String time, String rankStr, String tagTweetids){
-        int rank = Integer.parseInt(rankStr) ;
-        // get location id
-        Integer locationId = getLocationId(location);
-
-        // convert time => time.sec
-        long timeDate = getTime(time);
-
-        // convert tag:id => tagid, Array(id)
-        String[] tmp = tagTweetids.split(":");
-        String tag = tmp[0];
-        String[] tweetidStrs = tmp[1].split(",");
-
-        Integer tagId = getTagId(tag);
-
-        ArrayList<Long> tweetids = new ArrayList<Long>();
-        for(String tweetidStr: tweetidStrs){
-            long tweetid = Long.parseLong(tweetidStr);
-            tweetids.add(tweetid);
-        }
-
-        TagIDTweetids tagIDTweetids = new TagIDTweetids(tagId, tweetids);
-        LocationTime locationTime = new LocationTime(locationId, timeDate);
-
-        if(!locationTime2tagIDTweetids.containsKey(locationTime)){
-            locationTime2tagIDTweetids.put(locationTime, new Vector<TagIDTweetids>());
-        }
-
-        Vector<TagIDTweetids> v_TagIDTweetids = locationTime2tagIDTweetids.get(locationTime);
-        if(v_TagIDTweetids.size() <= rank-1 ){
-            v_TagIDTweetids.setSize(rank-1+1);
-        }
-        v_TagIDTweetids.add(rank-1, tagIDTweetids);
-
-    }
-
-    public String get(String location, String timeStr, String mStr, String nStr){
-        int locationId = getLocationId(location);
-        long time = getTime(timeStr);
-        int m = Integer.parseInt(mStr);
-        int n = Integer.parseInt(nStr);
-
-        Vector<TagIDTweetids> tagTweetidsVector =
-                locationTime2tagIDTweetids.get(new LocationTime(locationId, time));
-
-
-        if(tagTweetidsVector == null) return null;
-
-        StringBuilder sb = new StringBuilder();
-
-        for(int i = m-1 ; i <= n-1; i++){
-            if( i >= tagTweetidsVector.size()){
-                sb.append("null\n");
-                continue;
-            }
-            TagIDTweetids tagTweetids = tagTweetidsVector.get(i);
-            if(tagTweetids==null){
-                sb.append("null\n");
-                continue;
-            }
-
-            String tag = getTag(tagTweetids.tagId);
-            sb.append(tag);
-            sb.append(":");
-            for( int j = 0 ; j < tagTweetids.tweetids.size() ; j++){
-                sb.append(tagTweetids.tweetids.get(j));
-                if(i < tagTweetids.tweetids.size() -1){
-                    sb.append(',');
-                }
-            }
-            sb.append("\n");
-        }
-
-        return sb.toString();
-    }
-
-}
-
-
-class Q3Cache{
-    private ConcurrentMap<Long, ArrayList<Long>> cache;
-
-
-    public Q3Cache(){
-        cache = new ConcurrentHashMap<Long, ArrayList<Long>>();
-    }
-    public Q3Cache(int initialCapacity){
-        cache = new ConcurrentHashMap<Long, ArrayList<Long>>();
-    }
-
-    public int size(){
-        return cache.size();
-    }
-
-    public void put(String useridStr, String retweetidsStr){
-        long userid = Long.parseLong(useridStr);
-        String[] tmp = retweetidsStr.split(",");
-        ArrayList<Long> list = new ArrayList<Long>();
-        for(String idStr : tmp){
-            Long retweetid = (long)0;
-            if(idStr.charAt(0) == '('){
-                retweetid =  - Long.parseLong(idStr.substring(1, idStr.length()-1));
-            }else{
-                retweetid = Long.parseLong(idStr);
-            }
-            list.add(retweetid);
-        }
-        cache.put(userid, list);
-    }
-    public String get(String useridStr){
-        long userid = Long.parseLong(useridStr);
-        ArrayList<Long> retweetids = cache.get(userid);
-        if(retweetids == null){
-            return null;
-        }
-
-        StringBuilder sb = new StringBuilder();
-
-        for(int i = 0; i < retweetids.size(); i++){
-            Long id = retweetids.get(i);
-            if(id > 0){
-                sb.append(id);
-            }else{
-                sb.append("(");
-                sb.append(-id);
-                sb.append(")");
-            }
-            if( i < retweetids.size() -1){
-                sb.append("\n");
-            }
-        }
-        return sb.toString();
-    }
-}
-
-class SQLConnection{
-    static Connection mysqlConn=null;
-
-    public static Connection getSQLConnection(){
-
-        if(SQLConnection.mysqlConn == null){
-
-            String mysql_url="54.173.36.37";
-            String mysql_db="tweet";
-            String mysql_user="root";
-            String mysql_password="db15319root";
-
-            String driver="com.mysql.jdbc.Driver";
-            try {
-                // make the connection
-                Class.forName(driver);
-                String jdbc_url = "jdbc:mysql://" + mysql_url + ":3306/"+mysql_db+"?useUnicode=true&characterEncoding=UTF-8";
-                SQLConnection.mysqlConn = DriverManager.getConnection(jdbc_url, mysql_user, mysql_password);
-            }catch(Exception e){
-                e.printStackTrace();
-            }
-        }
-        return SQLConnection.mysqlConn;
-    }
-}
-
-
-class HBaseConnection{
-
-    public static HConnection getHBConnection(String hbaseIp){
-        if(hbaseIp.trim().compareTo("null") ==0){return null;}
-
-        Configuration conf = HBaseConfiguration.create();
-        conf.set("hbase.zookeeper.quorum",hbaseIp);
-        //conf.setInt("hbase.htable.threads.max", 90);
-        //conf.setInt("hbase.client.ipc.pool.size", 90 );
-        //conf.set("hbase.client.ipc.pool.type","RoundRobin");
-
-        HConnection connection = null;
-        try{
-            connection = HConnectionManager.createConnection(conf);
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-        return connection;
-    }
-}
 
 /**
  * Hello world!
@@ -370,11 +67,11 @@ public class App {
     public static boolean isDate(String dateStr)throws Exception{
         try{
             if(fmt.parse(dateStr) == null){return false;}
-            return true; 
+            return true;
         }catch(Exception e){
             return false;
         }
-    } 
+    }
 
     public static boolean isLong(String longStr){
         try{
@@ -573,10 +270,9 @@ public class App {
                         }
                     };
 
-        // Q1
+        // Q1 handler
         // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
         final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
-        //warmUpQ1(q1Cache, new BigInteger(warmUpQ1Num));
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -605,6 +301,8 @@ public class App {
             }
         };
 
+
+        // For testing
         HttpHandler q1SaveHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange) throws Exception{
                 String timeStr = timeFormat.format(Calendar.getInstance().getTime());
@@ -619,10 +317,9 @@ public class App {
             }
         };
 
-        // Q2 sql
+        // Q2 sql handler
     	System.out.println("Q2 SQL...start");
         final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
-        //final Connection sqlConn = SQLConnection.getSQLConnection();
         final Connection sqlConn = null;
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -660,12 +357,11 @@ public class App {
             }
         };
 
-        // Q2
-        // /q2?userid=1473664038&tweet_time=2014-04-08+02:43:27
+        // Q2 handler
+        // q2?userid=1473664038&tweet_time=2014-04-08+02:43:27
     	System.out.println("Q2 hbse: start");
         final ConcurrentMap<String,String> q2HbaseCache = new ConcurrentHashMap<String,String>();
         final HConnection q2hbaseConnection = HBaseConnection.getHBConnection(hbaseIp);
-        //warmUpQ2(q2HbaseCache, q2HbaseTable);
         final Q2IndexConvertor q2IndexConvertor = new Q2IndexConvertor();
 
         final byte[] q2familyByte = Bytes.toBytes("cfmain");
@@ -677,15 +373,15 @@ public class App {
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");                
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid + "_" + tweet_time;
-                
+
                 if(userid == null || !isLong(userid) || tweet_time == null || !isDate(tweet_time)){
                     exchange.getResponseSender().send(teamLine);
                     return;
-                } 
+                }
 
                 String cachePage = q2HbaseCache.get(row_key);
                 boolean isCached = (cachePage!= null);
@@ -696,11 +392,6 @@ public class App {
                     g.addColumn(q2familyByte, tweetIdByte);
                     g.addColumn(q2familyByte, sentimentScoreByte);
                     g.addColumn(q2familyByte, censoredTextByte);
-                    //g.setCacheBlocks(true);
-
-                    //HTableInterface q2HbaseTable = q2hbaseConnection.getTable("tweetsq2");
-                    //String encoded_rowkey = q2IndexConvertor.convert(row_key);
-                    //Get g = new Get(Bytes.toBytes(encoded_rowkey));
 
                     Result r = q2HbaseTable.get(g);
                     StringBuilder sb = new StringBuilder(teamLine);
@@ -745,9 +436,6 @@ public class App {
 
                 exchange.getResponseSender().send(page);
 
-                //double endTime = System.currentTimeMillis();
-                //System.out.println(String.format("whole: %f, get: %f, (%f)" , endTime-startTime, getEnd - getStart, (getEnd-getStart)/ (endTime - startTime)));
-
 
                 if(!isCached){
                     q2HbaseCache.put(userid, page);
@@ -755,19 +443,14 @@ public class App {
             }
         };
 
-
-        // Q3
-        // /q3?userid=2495192362
+        // Q3 handler
+        // q3?userid=2495192362
     	System.out.println("Q3: start");
-        //final ConcurrentMap<String,String> q3Cache = new ConcurrentHashMap<String,String>();
-        //final ConcurrentMap<String, String> q3StringCache = new ConcurrentHashMap<String, String>();
         final Q3Cache q3Cache = new Q3Cache();
         System.out.println("Q3: warmup");
-        //warmUpQ3ConncurrentMap(q3Cache, q3WarmUpFile);
         warmUpQ3(q3Cache, q3WarmUpFile);
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
-        //final HConnection q3connection = null;
         final PeerServer q3Server = new PeerServer(q3ServerIP);
         HttpHandler q3Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
@@ -807,27 +490,20 @@ public class App {
                     sb.append("\n");
 
                     exchange.getResponseSender().send(sb.toString());
+
+                    q3Table.close();
                 }
-                /*
-                if(!isCached){
-                    q3Cache.put(userid, retweetids.replace("\n", ","));
-                    //q3Table.close();
-                }
-                */
             }
         };
 
-        // Q4
-        // /q4?date=2014-05-22&location=Aalborg&m=1&n=3
-        // final ConcurrentMap<String,String> q4Cache = new ConcurrentHashMap<String,String>();
+        // Q4 handler
+        // q4?date=2014-05-22&location=Aalborg&m=1&n=3
         final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
         final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>();
-        // final Q4Cache myQ4Cache = new Q4Cache();
         final PeerServer q4Server = new PeerServer(q4ServerIP);
 
         System.out.println("Q4 warmup: ");
         warmUpQ4(warmUpQ4cache, q4WarmUpFile);
-        // warmUpQ4Cache(myQ4Cache, q4WarmUpFile);
         HttpHandler q4Handler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
                      throws Exception {
@@ -837,7 +513,7 @@ public class App {
                 int m = Integer.parseInt(mStr);
                 String nStr = exchange.getQueryParameters().get("n").getFirst();
                 int n = Integer.parseInt(nStr);
-                 
+
                 if(!nodeType.equals("Q4")){
                     String body = q4Server.getQ4(location, date, mStr, nStr);
                     if(body == null){
@@ -845,14 +521,13 @@ public class App {
                     }
                     exchange.getResponseSender().send(body);
                 }else{
-                
+
                     StringBuilder sb = new StringBuilder();
                     sb.append(teamLine);
                     sb.append("\n");
 
 
                     List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
-                    // String hashtagRetweets = myQ4Cache.get(location, date, mStr, nStr);
 
                     boolean isCached = (hashtagRetweets != null);
                     if(!isCached){
@@ -877,18 +552,12 @@ public class App {
                     }else{
                         int hashtagRetweetsSize = hashtagRetweets.size();
                         for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
-//                            if(i < hashtagRetweets.size()){
                               String tagText = hashtagRetweets.get(i) ;
                               if(tagText != null){
                                 sb.append(tagText);
                                 sb.append("\n");
                               }
-//                            }else{
-//                                sb.append("null");
-//                                sb.append("\n");
-//                            }
                         }
-                        // sb.append(hashtagRetweets);
                     }
 
                     exchange.getResponseSender().send(sb.toString());
@@ -899,7 +568,6 @@ public class App {
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
-        pathhandler.addPrefixPath("/q1Save", q1SaveHandler);
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
