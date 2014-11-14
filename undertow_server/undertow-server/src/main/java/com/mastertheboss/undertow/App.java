@@ -505,68 +505,121 @@ public class App {
         final ConcurrentMap<String, Vector<String>> warmUpQ4cache = new ConcurrentHashMap<String, Vector<String>>();
         final PeerServer q4Server = new PeerServer(q4ServerIP);
 
-        System.out.println("Q4 warmup: ");
-        warmUpQ4(warmUpQ4cache, q4WarmUpFile);
-        HttpHandler q4Handler = new HttpHandler(){
-             public void handleRequest(final HttpServerExchange exchange)
-                     throws Exception {
-                String date = exchange.getQueryParameters().get("date").getFirst();
-                String location = exchange.getQueryParameters().get("location").getFirst();
-                String mStr = exchange.getQueryParameters().get("m").getFirst();
-                int m = Integer.parseInt(mStr);
-                String nStr = exchange.getQueryParameters().get("n").getFirst();
-                int n = Integer.parseInt(nStr);
+        // System.out.println("Q4 warmup: ");
+        // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
+        // HttpHandler q4Handler = new HttpHandler(){
+        //      public void handleRequest(final HttpServerExchange exchange)
+        //              throws Exception {
+        //         String date = exchange.getQueryParameters().get("date").getFirst();
+        //         String location = exchange.getQueryParameters().get("location").getFirst();
+        //         String mStr = exchange.getQueryParameters().get("m").getFirst();
+        //         int m = Integer.parseInt(mStr);
+        //         String nStr = exchange.getQueryParameters().get("n").getFirst();
+        //         int n = Integer.parseInt(nStr);
 
-                if(!nodeType.equals("Q4")){
-                    String body = q4Server.getQ4(location, date, mStr, nStr);
-                    if(body == null){
-                        body = teamLine + "\n";
-                    }
-                    exchange.getResponseSender().send(body);
-                }else{
+        //         if(!nodeType.equals("Q4")){
+        //             String body = q4Server.getQ4(location, date, mStr, nStr);
+        //             if(body == null){
+        //                 body = teamLine + "\n";
+        //             }
+        //             exchange.getResponseSender().send(body);
+        //         }else{
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(teamLine);
-                    sb.append("\n");
+        //             StringBuilder sb = new StringBuilder();
+        //             sb.append(teamLine);
+        //             sb.append("\n");
 
 
-                    List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
+        //             List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
 
-                    boolean isCached = (hashtagRetweets != null);
-                    if(!isCached){
-                        HTableInterface q4Table = q4connection.getTable("tweetsq4");
-                        List<Get> batchGets = new ArrayList<Get>();
-                        for(int i = m ; i <= n ; i++){
-                            String rowKey = String.format("%s_%s_%d", location, date, i);
-                            Get g = new Get(Bytes.toBytes(rowKey));
-                            batchGets.add(g);
-                        }
+        //             boolean isCached = (hashtagRetweets != null);
+        //             if(!isCached){
+        //                 HTableInterface q4Table = q4connection.getTable("tweetsq4");
+        //                 List<Get> batchGets = new ArrayList<Get>();
+        //                 for(int i = m ; i <= n ; i++){
+        //                     String rowKey = String.format("%s_%s_%d", location, date, i);
+        //                     Get g = new Get(Bytes.toBytes(rowKey));
+        //                     batchGets.add(g);
+        //                 }
 
-                        Result[] rArray = q4Table.get(batchGets);
+        //                 Result[] rArray = q4Table.get(batchGets);
 
-                        for(Result r: rArray){
-                            byte [] tagtweetid = r.getValue(
-                                        Bytes.toBytes("cfmain"),
-                                        Bytes.toBytes("tagtweetid")
-                            );
-                            sb.append(Bytes.toString(tagtweetid));
-                            sb.append("\n");
-                        }
-                    }else{
-                        int hashtagRetweetsSize = hashtagRetweets.size();
-                        for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
-                              String tagText = hashtagRetweets.get(i) ;
-                              if(tagText != null){
-                                sb.append(tagText);
-                                sb.append("\n");
-                              }
-                        }
-                    }
+        //                 for(Result r: rArray){
+        //                     byte [] tagtweetid = r.getValue(
+        //                                 Bytes.toBytes("cfmain"),
+        //                                 Bytes.toBytes("tagtweetid")
+        //                     );
+        //                     sb.append(Bytes.toString(tagtweetid));
+        //                     sb.append("\n");
+        //                 }
+        //             }else{
+        //                 int hashtagRetweetsSize = hashtagRetweets.size();
+        //                 for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
+        //                       String tagText = hashtagRetweets.get(i) ;
+        //                       if(tagText != null){
+        //                         sb.append(tagText);
+        //                         sb.append("\n");
+        //                       }
+        //                 }
+        //             }
 
-                    exchange.getResponseSender().send(sb.toString());
-                 }
-             }
-        };
+        //             exchange.getResponseSender().send(sb.toString());
+        //          }
+        //      }
+        // };
+
+        // System.out.println("Q4 SQL warmup: ");
+        // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
+        // HttpHandler q4SQLHandler = new HttpHandler(){
+        //      public void handleRequest(final HttpServerExchange exchange)
+        //              throws Exception {
+        //         String date = exchange.getQueryParameters().get("date").getFirst();
+        //         String location = exchange.getQueryParameters().get("location").getFirst();
+        //         String mStr = exchange.getQueryParameters().get("m").getFirst();
+        //         int m = Integer.parseInt(mStr);
+        //         String nStr = exchange.getQueryParameters().get("n").getFirst();
+        //         int n = Integer.parseInt(nStr);
+
+        //         if(!nodeType.equals("Q4")){
+        //             String body = q4Server.getQ4(location, date, mStr, nStr);
+        //             if(body == null){
+        //                 body = teamLine + "\n";
+        //             }
+        //             exchange.getResponseSender().send(body);
+        //         }else{
+
+        //             StringBuilder sb = new StringBuilder();
+        //             sb.append(teamLine);
+        //             sb.append("\n");
+
+
+        //             List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
+
+        //             boolean isCached = (hashtagRetweets != null);
+        //             if(!isCached){
+        //                 HTableInterface q4Table = q4connection.getTable("tweetsq4");
+        //                 List<Get> batchGets = new ArrayList<Get>();
+        //                 for(int i = m ; i <= n ; i++){
+        //                     String rowKey = String.format("%s_%s_%d", location, date, i);
+        //                     int rowKeyHash = rowKey.hashCode();
+
+        //                 }
+        //             }else{
+        //                 int hashtagRetweetsSize = hashtagRetweets.size();
+        //                 for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
+        //                       String tagText = hashtagRetweets.get(i) ;
+        //                       if(tagText != null){
+        //                         sb.append(tagText);
+        //                         sb.append("\n");
+        //                       }
+        //                 }
+        //             }
+
+        //             exchange.getResponseSender().send(sb.toString());
+        //          }
+        //      }
+        // };
+
 
         System.out.println("Q5 SQL...start");
         // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
@@ -628,6 +681,7 @@ public class App {
                         page = String.format(
                             "%s\n"+
                             "%s\t%s\tWINNER\n"+
+                            "%d\t%d\t%s\n" +
                             "%d\t%d\t%s\n" +
                             "%d\t%d\t%s\n" +
                             "%d\t%d\t%s\n",
@@ -697,7 +751,7 @@ public class App {
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
-        pathhandler.addPrefixPath("/q4", q4Handler);
+        // pathhandler.addPrefixPath("/q4", q4Handler);
         pathhandler.addPrefixPath("/q5", q5SQLHandler);
         pathhandler.addPrefixPath("/q6", q6SQLHandler);
 
