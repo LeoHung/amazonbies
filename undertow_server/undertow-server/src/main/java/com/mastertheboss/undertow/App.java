@@ -725,10 +725,10 @@ public class App {
 
                         Integer cnt = 0;
                         while ( resultSet.next() ) {
-                            cnt = resultSet.getInt(cnt);
+                            cnt = resultSet.getInt("cnt");
                         }
 
-                        page = String.format("%s\n%d\n", teamLine, cnt);
+                        page = String.format("%s\n%s\n", teamLine, cnt.toString());
 
                         // sqlCache.put(row_key, page);
                     }catch(Exception e ){
