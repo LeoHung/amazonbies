@@ -282,12 +282,12 @@ public class App {
                     throws Exception {
                 String key_str = exchange.getQueryParameters().get("key").getFirst();
                 String numberStr = q1Cache.get(key_str);
-        		boolean isCached = (numberStr != null);
-                if(numberStr == null){
+        		//boolean isCached = (numberStr != null);
+                //if(numberStr == null){
                     BigInteger key = new BigInteger(key_str);
                     BigInteger number = key.divide(publicKey);
                     numberStr = number.toString();
-                }
+                //}
 
                 StringBuilder sb = new StringBuilder();
                 sb.append(numberStr);
@@ -298,12 +298,11 @@ public class App {
 
                 exchange.getResponseSender().send(sb.toString());
 
-        		if(!isCached){
-                    q1Cache.put(key_str, numberStr);
-        		}
+        		//if(!isCached){
+                //    q1Cache.put(key_str, numberStr);
+        		//}
             }
         };
-
 
         // For testing
         HttpHandler q1SaveHandler = new HttpHandler(){
@@ -720,7 +719,8 @@ public class App {
                 String page = null;
                     try{
                         Statement statement = sqlConn.createStatement();
-                        String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
+                        //String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
+                        String sql_query = String.format("call q6query(%s,%s)", userAId, userBId);
                         ResultSet resultSet = statement.executeQuery(sql_query);
 
                         Integer cnt = 0;
@@ -759,7 +759,10 @@ public class App {
         pathhandler.addPrefixPath("/", helloworld);
 
 
-        Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
+        Undertow server = Undertow.builder()
+                .setWorkerThreads(8)
+                .setIoThreads(4)
+                .addHttpListener(port, "0.0.0.0")
                 .setHandler(pathhandler).build();
         server.start();
     }
