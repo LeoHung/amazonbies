@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Vector;
 
+import java.math.BigDecimal;
+
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -252,6 +254,7 @@ public class App {
             port = Integer.parseInt(System.getenv("PORT"));
         }
         String hbaseIp = System.getenv("HBASEIP");
+        String mysqlIp = System.getenv("MYSQLIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
         final String nodeType = System.getenv("NODETYPE"); // nodeType = Q3 or Q4
@@ -320,7 +323,7 @@ public class App {
         // Q2 sql handler
     	System.out.println("Q2 SQL...start");
         final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
-        final Connection sqlConn = null;
+        final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
@@ -565,6 +568,129 @@ public class App {
              }
         };
 
+        System.out.println("Q5 SQL...start");
+        // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
+        // final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
+        HttpHandler q5SQLHandler = new HttpHandler(){
+            public String getWinner(String userA, Integer userAScore, String userB, Integer userBScore){
+                if(userAScore == userBScore){
+                    return "X";
+                }
+                if(userAScore > userBScore){
+                    return userA;
+                }else{
+                    return userB;
+                }
+            }
+
+            public void handleRequest(final HttpServerExchange exchange)
+                    throws Exception {
+                String userAId = exchange.getQueryParameters().get("m").getFirst();
+                String userBId = exchange.getQueryParameters().get("n").getFirst();
+
+
+                // String cachePage = sqlCache.get(row_key);
+                // String page =null;
+                // if(cachePage == null){
+                String page = null;
+                    try{
+                        Statement statement = sqlConn.createStatement();
+                        String sql_query = String.format("select userId, s1, s2, s3, total from q5 where userId = %s or userId = %s ", userAId, userBId);
+                        ResultSet resultSet = statement.executeQuery(sql_query);
+                        String content = "";
+
+                        Integer userAs1 = 0;
+                        Integer userAs2 = 0;
+                        Integer userAs3 = 0;
+                        Integer userATotal = 0;
+
+                        Integer userBs1 = 0;
+                        Integer userBs2 = 0;
+                        Integer userBs3 = 0;
+                        Integer userBTotal = 0;
+
+                        while ( resultSet.next() ) {
+                            BigDecimal userId = resultSet.getBigDecimal("userId");
+                            String userIdStr = userId.toString();
+                            if(userIdStr.equals(userAId)){
+                                userAs1 = resultSet.getInt("s1");
+                                userAs2 = resultSet.getInt("s2");
+                                userAs3 = resultSet.getInt("s3");
+                                userATotal = resultSet.getInt("total");
+                            }else{
+                                userBs1 = resultSet.getInt("s1");
+                                userBs2 = resultSet.getInt("s2");
+                                userBs3 = resultSet.getInt("s3");
+                                userBTotal = resultSet.getInt("total");
+                            }
+                        }
+
+                        page = String.format(
+                            "%s\n"+
+                            "%s\t%s\tWINNER\n"+
+                            "%d\t%d\t%s\n" +
+                            "%d\t%d\t%s\n" +
+                            "%d\t%d\t%s\n",
+                            teamLine,
+                            userAId, userBId,
+                            userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
+                            userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
+                            userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
+                            userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
+                        );
+                        // sqlCache.put(row_key, page);
+                    }catch(Exception e ){
+                        e.printStackTrace();
+                    }
+                // }else{
+                //     page = cachePage;
+                // }
+
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                exchange.getResponseSender().send(page);
+            }
+        };
+
+
+        HttpHandler q6SQLHandler = new HttpHandler(){
+
+            public void handleRequest(final HttpServerExchange exchange)
+                    throws Exception {
+                String userAId = exchange.getQueryParameters().get("m").getFirst();
+                String userBId = exchange.getQueryParameters().get("n").getFirst();
+
+                // String cachePage = sqlCache.get(row_key);
+                // String page =null;
+                // if(cachePage == null){
+                String page = null;
+                    try{
+                        Statement statement = sqlConn.createStatement();
+                        String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
+                        ResultSet resultSet = statement.executeQuery(sql_query);
+
+                        Integer cnt = 0;
+                        while ( resultSet.next() ) {
+                            cnt = resultSet.getInt(cnt);
+                        }
+
+                        page = String.format("%s\n%d\n", teamLine, cnt);
+
+                        // sqlCache.put(row_key, page);
+                    }catch(Exception e ){
+                        e.printStackTrace();
+                    }
+                // }else{
+                //     page = cachePage;
+                // }
+
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                exchange.getResponseSender().send(page);
+            }
+        };
+
+
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
@@ -572,6 +698,9 @@ public class App {
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
         pathhandler.addPrefixPath("/q4", q4Handler);
+        pathhandler.addPrefixPath("/q5", q5SQLHandler);
+        pathhandler.addPrefixPath("/q6", q6SQLHandler);
+
 
         pathhandler.addPrefixPath("/", helloworld);
 

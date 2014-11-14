@@ -50,14 +50,17 @@ import org.apache.commons.codec.binary.Base64;
 public class SQLConnection{
     static Connection mysqlConn=null;
 
-    public static Connection getSQLConnection(){
+    public static Connection getSQLConnection(String mySqlIp){
+        if(mySqlIp.equals("null")){
+            return null;
+        }
 
         if(SQLConnection.mysqlConn == null){
 
-            String mysql_url="54.173.36.37";
+            String mysql_url=mySqlIp;
             String mysql_db="tweet";
             String mysql_user="root";
-            String mysql_password="db15319root";
+            String mysql_password="password";
 
             String driver="com.mysql.jdbc.Driver";
             try {
