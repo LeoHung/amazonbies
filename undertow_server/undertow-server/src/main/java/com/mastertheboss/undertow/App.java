@@ -568,57 +568,44 @@ public class App {
         //      }
         // };
 
-        // System.out.println("Q4 SQL warmup: ");
+        System.out.println("Q4 SQL warmup: ");
         // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
-        // HttpHandler q4SQLHandler = new HttpHandler(){
-        //      public void handleRequest(final HttpServerExchange exchange)
-        //              throws Exception {
-        //         String date = exchange.getQueryParameters().get("date").getFirst();
-        //         String location = exchange.getQueryParameters().get("location").getFirst();
-        //         String mStr = exchange.getQueryParameters().get("m").getFirst();
-        //         int m = Integer.parseInt(mStr);
-        //         String nStr = exchange.getQueryParameters().get("n").getFirst();
-        //         int n = Integer.parseInt(nStr);
-
-        //         if(!nodeType.equals("Q4")){
-        //             String body = q4Server.getQ4(location, date, mStr, nStr);
-        //             if(body == null){
-        //                 body = teamLine + "\n";
-        //             }
-        //             exchange.getResponseSender().send(body);
-        //         }else{
-
-        //             StringBuilder sb = new StringBuilder();
-        //             sb.append(teamLine);
-        //             sb.append("\n");
+        HttpHandler q4SQLHandler = new HttpHandler(){
+             public void handleRequest(final HttpServerExchange exchange)
+                     throws Exception {
+                String date = exchange.getQueryParameters().get("date").getFirst();
+                String location = exchange.getQueryParameters().get("location").getFirst();
+                String mStr = exchange.getQueryParameters().get("m").getFirst();
+                int m = Integer.parseInt(mStr);
+                String nStr = exchange.getQueryParameters().get("n").getFirst();
+                int n = Integer.parseInt(nStr);
 
 
-        //             List<String> hashtagRetweets = warmUpQ4cache.get(location+"_"+date);
+                StringBuilder sb = new StringBuilder();
+                sb.append(teamLine);
+                sb.append("\n");
 
-        //             boolean isCached = (hashtagRetweets != null);
-        //             if(!isCached){
-        //                 HTableInterface q4Table = q4connection.getTable("tweetsq4");
-        //                 List<Get> batchGets = new ArrayList<Get>();
-        //                 for(int i = m ; i <= n ; i++){
-        //                     String rowKey = String.format("%s_%s_%d", location, date, i);
-        //                     int rowKeyHash = rowKey.hashCode();
+                Statement statement = sqlConn.createStatement();
 
-        //                 }
-        //             }else{
-        //                 int hashtagRetweetsSize = hashtagRetweets.size();
-        //                 for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
-        //                       String tagText = hashtagRetweets.get(i) ;
-        //                       if(tagText != null){
-        //                         sb.append(tagText);
-        //                         sb.append("\n");
-        //                       }
-        //                 }
-        //             }
+                for(int i = m ; i <= n ; i++){
+                    String rowKey = String.format("%s_%s_%d", location, date, i);
+                    System.out.println(rowKey);
+                    int rowKeyHash = rowKey.hashCode();
+                    String sql_query = String.format("select retw from q4 where q4key = %d", rowKeyHash);
+                    System.out.println(sql_query);
+                    ResultSet resultSet = statement.executeQuery(sql_query);
+                    if(!resultSet.next()){
+                        break;
+                    }
 
-        //             exchange.getResponseSender().send(sb.toString());
-        //          }
-        //      }
-        // };
+                    String retw = resultSet.getString("retw");
+                    sb.append(retw);
+                    sb.append("\n");
+                }
+                exchange.getResponseSender().send(sb.toString());
+
+            }
+        };
 
 
         System.out.println("Q5 SQL...start");
@@ -751,7 +738,7 @@ public class App {
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3Handler);
-        // pathhandler.addPrefixPath("/q4", q4Handler);
+        pathhandler.addPrefixPath("/q4", q4SQLHandler);
         pathhandler.addPrefixPath("/q5", q5SQLHandler);
         pathhandler.addPrefixPath("/q6", q6SQLHandler);
 
