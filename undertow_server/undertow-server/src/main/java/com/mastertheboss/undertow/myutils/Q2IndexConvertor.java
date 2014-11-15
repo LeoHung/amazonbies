@@ -79,6 +79,17 @@ public class Q2IndexConvertor{
         return b+a;
     }
 
+   public static Long convertToLong(String text) throws Exception
+    {
+        String[] uidDtm = text.split("_");
+        Date dt = fmt.parse(uidDtm[1]);
+        Long seconds = (dt.getTime()-originDate.getTime())/1000;
+        Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
+        return dt_uid;
+        //return encoded;
+    }
+
+
     public Q2IndexConvertor() throws Exception{
         this.initiateOriginDate();
     }

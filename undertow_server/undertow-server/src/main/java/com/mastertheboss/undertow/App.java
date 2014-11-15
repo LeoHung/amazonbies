@@ -329,20 +329,26 @@ public class App {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid+"_"+tweet_time;
+                Long rowKeyHash = Q2IndexConvertor.convertToLong(row_key);
 
-                String cachePage = sqlCache.get(row_key);
-                String page =null;
+                // String cachePage = sqlCache.get(row_key);
+                String cachePage = null;
+                String page = null;
                 if(cachePage == null){
                     try{
                         Statement statement = sqlConn.createStatement();
-                        String sql_query = "select tweetId, sentimentScore, censoredText from tweets_phase1 where userIdtime='"+row_key+"'";
+                        String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
+                        System.out.println(sql_query);
+
                         ResultSet resultSet = statement.executeQuery(sql_query);
                         String content = "";
                         while ( resultSet.next() ) {
                             String tweetId = resultSet.getString("tweetId");
-                            Integer sentimentScore = resultSet.getInt("sentimentScore");
-                            String censoredText = resultSet.getString("censoredText");
-                            content += (tweetId +":"+sentimentScore+":"+censoredText+";");
+                            Integer score = resultSet.getInt("score");
+                            String censoredJsonStr = resultSet.getString("censored");
+                            JSONObject censoredJson = new JSONObject(censoredJsonStr);
+                            String censored = censoredJson.getString("ct");
+                            content += (tweetId +":"+score+":"+censored+";");
                         }
                         page = teamLine + "\n" + content;
                         sqlCache.put(row_key, page);
@@ -618,9 +624,12 @@ public class App {
                         break;
                     }
 
-                    String retw = resultSet.getString("retw").trim();
-                    sb.append(retw);
+                    String jsonStr = resultSet.getString("retw").trim();
+                    JSONObject textObj = new JSONObject(jsonStr);
+                    String retwStr = textObj.getString("dt");
+                    sb.append(retwStr);
                     sb.append("\n");
+
                 }
                 exchange.getResponseSender().send(sb.toString());
 
@@ -756,8 +765,8 @@ public class App {
 
         PathHandler pathhandler = Handlers.path();
         pathhandler.addPrefixPath("/q1", q1Handler);
-        pathhandler.addPrefixPath("/q2", q2HbaseHandler);
-        pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
+        pathhandler.addPrefixPath("/q2", q2SQLHandler);
+        // pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
         pathhandler.addPrefixPath("/q3", q3SQLHandler);
         pathhandler.addPrefixPath("/q4", q4SQLHandler);
         pathhandler.addPrefixPath("/q5", q5SQLHandler);
