@@ -512,7 +512,7 @@ public class App {
                 String sql_query = String.format("select retw from q3 where userId = %s", userId);
                 ResultSet resultSet = statement.executeQuery(sql_query);
                 if(resultSet.next()){
-                    sb.append(resultSet.getString("retw"));
+                    sb.append(resultSet.getString("retw").replace(",", "\n"));
                 }
                 sb.append("\n");
 
@@ -767,9 +767,10 @@ public class App {
         pathhandler.addPrefixPath("/", helloworld);
 
 
+                //setIoThreads(4)
         Undertow server = Undertow.builder()
-                .setWorkerThreads(64)
-                .setIoThreads(4)
+                .setIoThreads(2)
+                .setWorkerThreads(100)
                 .addHttpListener(port, "0.0.0.0")
                 .setHandler(pathhandler).build();
         server.start();
