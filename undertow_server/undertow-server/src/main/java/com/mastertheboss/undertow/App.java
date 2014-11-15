@@ -588,16 +588,14 @@ public class App {
 
                 for(int i = m ; i <= n ; i++){
                     String rowKey = String.format("%s_%s_%d", location, date, i);
-                    System.out.println(rowKey);
                     int rowKeyHash = rowKey.hashCode();
                     String sql_query = String.format("select retw from q4 where q4key = %d", rowKeyHash);
-                    System.out.println(sql_query);
                     ResultSet resultSet = statement.executeQuery(sql_query);
                     if(!resultSet.next()){
                         break;
                     }
 
-                    String retw = resultSet.getString("retw");
+                    String retw = resultSet.getString("retw").trim();
                     sb.append(retw);
                     sb.append("\n");
                 }
