@@ -498,6 +498,29 @@ public class App {
             }
         };
 
+        // Q3
+        HttpHandler q3SQLHandler = new HttpHandler(){
+            public void handleRequest(final HttpServerExchange exchange)
+                    throws Exception {
+                String userId = exchange.getQueryParameters().get("userid").getFirst();
+
+                Statement statement = sqlConn.createStatement();
+
+                StringBuilder sb = new StringBuilder();
+                sb.append(teamLine);
+                sb.append("\n");
+                String sql_query = String.format("select retw from q3 where userId = %s", userId);
+                ResultSet resultSet = statement.executeQuery(sql_query);
+                if(resultSet.next()){
+                    sb.append(resultSet.getString("retw"));
+                }
+                sb.append("\n");
+
+                exchange.getResponseSender().send(sb.toString());
+            }
+        };
+
+
         // Q4 handler
         // q4?date=2014-05-22&location=Aalborg&m=1&n=3
         final HConnection q4connection = HBaseConnection.getHBConnection(hbaseIp);
@@ -735,7 +758,7 @@ public class App {
         pathhandler.addPrefixPath("/q1", q1Handler);
         pathhandler.addPrefixPath("/q2", q2HbaseHandler);
         pathhandler.addPrefixPath("/sql/q2", q2SQLHandler);
-        pathhandler.addPrefixPath("/q3", q3Handler);
+        pathhandler.addPrefixPath("/q3", q3SQLHandler);
         pathhandler.addPrefixPath("/q4", q4SQLHandler);
         pathhandler.addPrefixPath("/q5", q5SQLHandler);
         pathhandler.addPrefixPath("/q6", q6SQLHandler);
