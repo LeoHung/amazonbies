@@ -760,7 +760,7 @@ public class App {
 
 
         Undertow server = Undertow.builder()
-                .setWorkerThreads(8)
+                .setWorkerThreads(64)
                 .setIoThreads(4)
                 .addHttpListener(port, "0.0.0.0")
                 .setHandler(pathhandler).build();
