@@ -8,6 +8,13 @@
   <name>undertow-server</name>
   <url>http://maven.apache.org</url>
   <dependencies>
+
+    <dependency>
+      <groupId>com.googlecode.concurrentlinkedhashmap</groupId>
+      <artifactId>concurrentlinkedhashmap-lru</artifactId>
+      <version>1.4</version>
+    </dependency>
+
     <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-io</artifactId>

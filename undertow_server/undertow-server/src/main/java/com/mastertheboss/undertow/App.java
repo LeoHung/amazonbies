@@ -275,22 +275,23 @@ public class App {
 
         // Q1 handler
         // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
-        final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
+        // final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
+        final MyCache<BigInteger,BigInteger> q1Cache = new LRUConcurrentCache<BigInteger, BigInteger>(1000);
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 String key_str = exchange.getQueryParameters().get("key").getFirst();
-                String numberStr = q1Cache.get(key_str);
-        		//boolean isCached = (numberStr != null);
-                //if(numberStr == null){
-                    BigInteger key = new BigInteger(key_str);
-                    BigInteger number = key.divide(publicKey);
-                    numberStr = number.toString();
-                //}
+                BigInteger key = new BigInteger(key_str);
+
+                BigInteger number = q1Cache.get(key);
+        		boolean isCached = (number != null);
+                if(!isCached){
+                    number = key.divide(publicKey);
+                }
 
                 StringBuilder sb = new StringBuilder();
-                sb.append(numberStr);
+                sb.append(number.toString());
                 sb.append("\n");
                 sb.append("Amazombies,jiajunwa,chiz2,sanchuah");
                 sb.append("\n");
@@ -298,26 +299,26 @@ public class App {
 
                 exchange.getResponseSender().send(sb.toString());
 
-        		//if(!isCached){
-                //    q1Cache.put(key_str, numberStr);
-        		//}
+        		if(!isCached){
+                    q1Cache.put(key, number);
+        	   }
             }
         };
 
         // For testing
-        HttpHandler q1SaveHandler = new HttpHandler(){
-            public void handleRequest(final HttpServerExchange exchange) throws Exception{
-                String timeStr = timeFormat.format(Calendar.getInstance().getTime());
-                String filename = "/tmp/q1Query_"+ timeStr +".txt";
+        // HttpHandler q1SaveHandler = new HttpHandler(){
+        //     public void handleRequest(final HttpServerExchange exchange) throws Exception{
+        //         String timeStr = timeFormat.format(Calendar.getInstance().getTime());
+        //         String filename = "/tmp/q1Query_"+ timeStr +".txt";
 
-                PrintStream ps = new PrintStream(filename);
-                for(String key_str: q1Cache.keySet()){
-                    ps.println(key_str + "\t" + q1Cache.get(key_str));
-                }
-                ps.close();
-                exchange.getResponseSender().send("Finished..." + filename);
-            }
-        };
+        //         PrintStream ps = new PrintStream(filename);
+        //         for(String key_str: q1Cache.keySet()){
+        //             ps.println(key_str + "\t" + q1Cache.get(key_str));
+        //         }
+        //         ps.close();
+        //         exchange.getResponseSender().send("Finished..." + filename);
+        //     }
+        // };
 
         // Q2 sql handler
     	System.out.println("Q2 SQL...start");
@@ -336,7 +337,7 @@ public class App {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid+"_"+tweet_time;
-                // filter 
+                // filter
                 //if(userid.length() == 0 || tweet_time.trim().length() == 0){
                 //    exchange.getResponseSender().send(teamLine);
                 //    return;
