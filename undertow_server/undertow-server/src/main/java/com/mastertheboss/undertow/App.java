@@ -322,23 +322,36 @@ public class App {
         // Q2 sql handler
     	System.out.println("Q2 SQL...start");
         final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
-        final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
+        //final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
+        Q2IndexConvertor.initiateOriginDate();
+        DataSource.init(mysqlIp, "root", "password", "tweet") ;
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
+                if (exchange.isInIoThread()) {
+                    exchange.dispatch(this);
+                    return;
+                }
+
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid+"_"+tweet_time;
-                Long rowKeyHash = Q2IndexConvertor.convertToLong(row_key);
+                // filter 
+                //if(userid.length() == 0 || tweet_time.trim().length() == 0){
+                //    exchange.getResponseSender().send(teamLine);
+                //    return;
+                //}
+
+                Long rowKeyHash = Q2IndexConvertor.convertToLong(userid, tweet_time);
 
                 // String cachePage = sqlCache.get(row_key);
                 String cachePage = null;
                 String page = null;
                 if(cachePage == null){
                     try{
+                        Connection sqlConn = DataSource.getInstance().getConnection();
                         Statement statement = sqlConn.createStatement();
                         String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
-                        System.out.println(sql_query);
 
                         ResultSet resultSet = statement.executeQuery(sql_query);
                         String content = "";
@@ -352,6 +365,7 @@ public class App {
                         }
                         page = teamLine + "\n" + content;
                         sqlCache.put(row_key, page);
+                        sqlConn.close();
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
@@ -510,6 +524,7 @@ public class App {
                     throws Exception {
                 String userId = exchange.getQueryParameters().get("userid").getFirst();
 
+                Connection sqlConn = DataSource.getInstance().getConnection();
                 Statement statement = sqlConn.createStatement();
 
                 StringBuilder sb = new StringBuilder();
@@ -521,7 +536,7 @@ public class App {
                     sb.append(resultSet.getString("retw").replace(",", "\n"));
                 }
                 sb.append("\n");
-
+                sqlConn.close();
                 exchange.getResponseSender().send(sb.toString());
             }
         };
@@ -612,7 +627,7 @@ public class App {
                 StringBuilder sb = new StringBuilder();
                 sb.append(teamLine);
                 sb.append("\n");
-
+                Connection sqlConn = DataSource.getInstance().getConnection();
                 Statement statement = sqlConn.createStatement();
 
                 for(int i = m ; i <= n ; i++){
@@ -623,16 +638,20 @@ public class App {
                     if(!resultSet.next()){
                         break;
                     }
-
-                    String jsonStr = resultSet.getString("retw").trim();
-                    JSONObject textObj = new JSONObject(jsonStr);
-                    String retwStr = textObj.getString("dt");
-                    sb.append(retwStr);
-                    sb.append("\n");
-
+                    String jsonStr = resultSet.getString("retw");
+                    try{
+                        JSONObject textObj = new JSONObject(jsonStr);
+                        String retwStr = textObj.getString("dt");
+                        sb.append(retwStr);
+                        sb.append("\n");
+                    }catch(Exception e ){
+                        e.printStackTrace();
+                        System.out.println(rowKeyHash );
+                        System.out.println(jsonStr);
+                    }
                 }
+                sqlConn.close();
                 exchange.getResponseSender().send(sb.toString());
-
             }
         };
 
@@ -663,6 +682,7 @@ public class App {
                 // if(cachePage == null){
                 String page = null;
                     try{
+                        Connection sqlConn = DataSource.getInstance().getConnection();
                         Statement statement = sqlConn.createStatement();
                         String sql_query = String.format("select userId, s1, s2, s3, total from q5 where userId = %s or userId = %s ", userAId, userBId);
                         ResultSet resultSet = statement.executeQuery(sql_query);
@@ -708,6 +728,7 @@ public class App {
                             userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
                             userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
                         );
+                           sqlConn.close();
                         // sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();
@@ -727,6 +748,10 @@ public class App {
 
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
+                if (exchange.isInIoThread()) {
+                    exchange.dispatch(this);
+                    return;
+                }
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
 
@@ -735,6 +760,7 @@ public class App {
                 // if(cachePage == null){
                 String page = null;
                     try{
+                        Connection sqlConn = DataSource.getInstance().getConnection();
                         Statement statement = sqlConn.createStatement();
                         //String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
                         String sql_query = String.format("call q6query(%s,%s)", userAId, userBId);
@@ -746,7 +772,7 @@ public class App {
                         }
 
                         page = String.format("%s\n%s\n", teamLine, cnt.toString());
-
+                        sqlConn.close();
                         // sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();

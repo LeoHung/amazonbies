@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.math.BigInteger;
 import java.util.Date;
+import java.lang.ThreadLocal;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -50,8 +51,13 @@ import org.apache.commons.codec.binary.Base64;
 public class Q2IndexConvertor{
 
     static String thisline;
-    static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
-    static Date originDate ;
+    static final  ThreadLocal<SimpleDateFormat> fmt = new ThreadLocal<SimpleDateFormat>(){
+        @Override
+        protected SimpleDateFormat initialValue() {
+            return new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
+        }
+    };
+    static Date originDate =null ;
 
     public byte[] longToBytes(long x) {
         ByteBuffer buffer = null;
@@ -60,15 +66,22 @@ public class Q2IndexConvertor{
         return buffer.array();
     }
 
-    public void initiateOriginDate() throws Exception
+    public static void initiateOriginDate() throws Exception
     {
-        originDate = fmt.parse("2014-01-01+00:00:00");
+        originDate = fmt.get().parse("2014-01-01+00:00:00");
+    }
+
+    public static Date getInitiateOriginDate() throws Exception{
+        if(originDate == null){
+            originDate = fmt.get().parse("2014-01-01+00:00:00");
+        }
+        return originDate;
     }
 
     public String convert(String text) throws Exception
     {
         String[] uidDtm = text.split("_");
-        Date dt = fmt.parse(uidDtm[1]);
+        Date dt = fmt.get().parse(uidDtm[1]);
         Long seconds = (dt.getTime()-originDate.getTime())/1000;
         Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
         byte[] binaryData = longToBytes(dt_uid);
@@ -79,13 +92,33 @@ public class Q2IndexConvertor{
         return b+a;
     }
 
-   public static Long convertToLong(String text) throws Exception
+   public static Long convertToLong(String userid, String tweet_time) throws Exception
     {
-        String[] uidDtm = text.split("_");
-        Date dt = fmt.parse(uidDtm[1]);
-        Long seconds = (dt.getTime()-originDate.getTime())/1000;
-        Long dt_uid = Long.parseLong(seconds.toString() + uidDtm[0]);
-        return dt_uid;
+       // String[] uidDtm = text.split("_");
+        
+        Date dt = null;
+        try{
+            dt = fmt.get().parse(tweet_time);
+        }catch(Exception e){
+            e.printStackTrace();
+            System.out.println(userid  +" " + tweet_time );
+            return (long) -1;
+        }        
+
+        //if(originDate ==null){
+        //    initiateOriginDate();
+        //}
+        //System.out.println(originDate );
+        //Long seconds = (dt.getTime()-originDate.getTime())/1000;
+        Long seconds = (dt.getTime()-getInitiateOriginDate().getTime())/1000;
+        
+        try{
+            Long dt_uid = Long.parseLong(seconds.toString() + userid);
+            return dt_uid;
+        }catch(Exception e){
+            System.out.println("Converting Error: " + seconds.toString() + " " + userid);
+            return (long)-1;
+        }
         //return encoded;
     }
 

@@ -50,6 +50,7 @@ import org.apache.commons.codec.binary.Base64;
 public class SQLConnection{
     static Connection mysqlConn=null;
 
+    
     public static Connection getSQLConnection(String mySqlIp){
         if(mySqlIp.equals("null")){
             return null;
@@ -66,7 +67,8 @@ public class SQLConnection{
             try {
                 // make the connection
                 Class.forName(driver);
-                String jdbc_url = "jdbc:mysql://" + mysql_url + ":3306/"+mysql_db+"?useUnicode=true&characterEncoding=UTF-8";
+                //String jdbc_url = "jdbc:mysql://" + mysql_url + ":3306/"+mysql_db+"?useUnicode=true&characterEncoding=UTF-8";
+                String jdbc_url = "jdbc:mysql://" + mysql_url + ":3306/"+mysql_db;
                 SQLConnection.mysqlConn = DriverManager.getConnection(jdbc_url, mysql_user, mysql_password);
             }catch(Exception e){
                 e.printStackTrace();
