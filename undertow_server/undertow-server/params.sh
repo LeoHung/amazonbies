@@ -4,6 +4,7 @@ export HBASEIP=null
 export MYSQLIP=54.86.62.157
 export WARMUPQ3FILE=data/q3.empty
 export WARMUPQ4FILE=data/q4.empty
+export WARMUPQ5FILE=data/q5.small
 export Q3SERVERIP=null
 export Q4SERVERIP=null
 export MAVEN_OPTS="-Xms4g -Xmx6g"

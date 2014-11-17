@@ -53,7 +53,7 @@ import com.mastertheboss.undertow.peer.PeerServer;
 import com.mastertheboss.undertow.cache.*;
 import com.mastertheboss.undertow.myutils.*;
 import com.mastertheboss.undertow.connection.*;
-import com.mastertheboss.undertow.cache.binarySearch.Q4BinarySearchCache;
+import com.mastertheboss.undertow.cache.binarySearch.*;
 
 /**
  * Hello world!
@@ -257,9 +257,11 @@ public class App {
         String mysqlIp = System.getenv("MYSQLIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
+        String q5WarmUpFile = System.getenv("WARMUPQ5FILE");
         final String nodeType = System.getenv("NODETYPE"); // nodeType = Q3 or Q4
         String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
         String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
+
 
         showEnvParams(port, hbaseIp, q3WarmUpFile, q4WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
@@ -681,7 +683,18 @@ public class App {
         System.out.println("Q5 SQL...start");
         // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         // final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
+        final MyCache<Integer, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
         HttpHandler q5SQLHandler = new HttpHandler(){
+            public String getWinner(String userA, short userAScore, String userB, short userBScore){
+                if(userAScore == userBScore){
+                    return "X";
+                }
+                if(userAScore > userBScore){
+                    return userA;
+                }else{
+                    return userB;
+                }
+            }
             public String getWinner(String userA, Integer userAScore, String userB, Integer userBScore){
                 if(userAScore == userBScore){
                     return "X";
@@ -692,17 +705,50 @@ public class App {
                     return userB;
                 }
             }
-
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
+                int userAIdInt = Integer.parseInt(userAId);
+                int userBIdInt = Integer.parseInt(userBId);
 
+                Scores AScores = q5Cache.get(userAIdInt);
+                Scores BScores = q5Cache.get(userBIdInt);
 
-                // String cachePage = sqlCache.get(row_key);
-                // String page =null;
-                // if(cachePage == null){
+                boolean isCached = ((AScores !=null) && (BScores != null));
+
                 String page = null;
+
+                if(isCached){
+                    short userAs1 = AScores.getS1();
+                    short userAs2 = AScores.getS2();
+                    short userAs3 = AScores.getS3();
+                    int userATotal = userAs1 + userAs2 + userAs3;
+
+                    short userBs1 = BScores.getS1();
+                    short userBs2 = BScores.getS2();
+                    short userBs3 = BScores.getS3();
+                    int userBTotal = userBs1 + userBs2 + userBs3;
+
+                    page = String.format(
+                            "%s\n"+
+                            "%s\t%s\tWINNER\n"+
+                            "%d\t%d\t%s\n" +
+                            "%d\t%d\t%s\n" +
+                            "%d\t%d\t%s\n" +
+                            "%d\t%d\t%s\n",
+                            teamLine,
+                            userAId, userBId,
+                            userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
+                            userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
+                            userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
+                            userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
+                        );
+
+                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                    exchange.getResponseSender().send(page);
+                }else{
                     try{
                         Connection sqlConn = DataSource.getInstance().getConnection();
                         Statement statement = sqlConn.createStatement();
@@ -755,13 +801,15 @@ public class App {
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
+                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
+                        "text/plain");
+                    exchange.getResponseSender().send(page);
+                }
                 // }else{
                 //     page = cachePage;
                 // }
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
-                exchange.getResponseSender().send(page);
+
             }
         };
 
@@ -776,6 +824,8 @@ public class App {
                 }
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
+
+
 
                 // String cachePage = sqlCache.get(row_key);
                 // String page =null;
