@@ -18,13 +18,17 @@ public class Q5BinarySearchCache implements MyCache<Integer, Scores>{
             BufferedReader bf = new BufferedReader(new FileReader(filename));
             String line = null;
             while( (line = bf.readLine()) != null){
-                String[] tmp = line.trim().split(",");
-                Integer userId = Integer.parseInt(tmp[0]);
-                userIds.add(userId);
-                short s1 = Short.parseShort(tmp[1]);
-                short s2 = Short.parseShort(tmp[2]);
-                short s3 = Short.parseShort(tmp[3]);
-                scores.add(new Scores(s1, s2, s3));
+                try{
+                    String[] tmp = line.trim().split(",");
+                    Integer userId = Integer.parseInt(tmp[0]);
+                    short s1 = Short.parseShort(tmp[1]);
+                    short s2 = Short.parseShort(tmp[2]);
+                    short s3 = Short.parseShort(tmp[3]);
+                    userIds.add(userId);
+                    scores.add(new Scores(s1, s2, s3));
+                }catch(Exception e){
+                    continue;
+                }
             }
             bf.close();
         }catch(Exception e){
