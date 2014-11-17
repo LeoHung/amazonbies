@@ -1,6 +1,7 @@
 package com.mastertheboss.undertow.cache.binarySearch;
 
 import com.mastertheboss.undertow.cache.BinarySearchCache;
+import com.mastertheboss.undertow.cache.MyCache;
 
 
 import java.util.TreeMap;
@@ -8,10 +9,12 @@ import java.util.Vector;
 import java.io.*;
 
 
-public class Q4BinarySearchCache extends BinarySearchCache<String, Vector<String>>{
-    public Q4BinarySearchCache(String filename){
-        StringComparator strComparator = new StringComparator();
-        TreeMap<String, Vector<String>> sortedMap = new TreeMap<String, Vector<String>>(strComparator);
+public class Q4BinarySearchHashCache implements MyCache<String,Vector<String>> {
+    BinarySearchCache<Integer,Vector<String>> cache = new BinarySearchCache<Integer,Vector<String>>();
+
+    public Q4BinarySearchHashCache(String filename){
+        IntegerComparator intComparator = new IntegerComparator();
+        TreeMap<Integer, Vector<String>> sortedMap = new TreeMap<Integer, Vector<String>>(intComparator);
 
         try{
             BufferedReader bf = new BufferedReader(new FileReader(filename));
@@ -33,10 +36,11 @@ public class Q4BinarySearchCache extends BinarySearchCache<String, Vector<String
                 int rank = Integer.parseInt(tmp2[tmp2.length-1]);
 
                 String locationDate = location +"_"+ date;
-                if(!sortedMap.containsKey(locationDate)){
-                    sortedMap.put(locationDate, new Vector<String>());
+                Integer locationDateHash = locationDate.hashCode();
+                if(!sortedMap.containsKey(locationDateHash)){
+                    sortedMap.put(locationDateHash, new Vector<String>());
                 }
-                Vector<String> l = sortedMap.get(locationDate);
+                Vector<String> l = sortedMap.get(locationDateHash);
                 if( (rank-1) >= l.size()){
                     l.setSize(rank-1+1);
                 }
@@ -46,12 +50,20 @@ public class Q4BinarySearchCache extends BinarySearchCache<String, Vector<String
             e.printStackTrace();
         }
 
-        String[] sortedKey = (String[]) sortedMap.keySet().toArray(new String[sortedMap.keySet().size()]);
+        Integer[] sortedKey = (Integer[]) sortedMap.keySet().toArray(new Integer[sortedMap.keySet().size()]);
         Vector<String>[] sortedValue = (Vector[]) sortedMap.values().toArray(new Vector[sortedMap.values().size()]);
 
-        this.set(sortedKey, sortedValue, strComparator);
+        this.cache.set(sortedKey, sortedValue, intComparator);
+
         sortedMap = null;
         System.gc();
+    }
+
+    public Vector<String> get(String key){
+        return this.cache.get(key.hashCode());
+    }
+    public void put(String key, Vector<String> value ){
+        return ;
     }
 
 }
