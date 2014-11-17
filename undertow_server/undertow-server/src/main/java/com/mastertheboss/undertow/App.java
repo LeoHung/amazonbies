@@ -53,7 +53,7 @@ import com.mastertheboss.undertow.peer.PeerServer;
 import com.mastertheboss.undertow.cache.*;
 import com.mastertheboss.undertow.myutils.*;
 import com.mastertheboss.undertow.connection.*;
-
+import com.mastertheboss.undertow.cache.binarySearch.Q4BinarySearchCache;
 
 /**
  * Hello world!
@@ -614,6 +614,7 @@ public class App {
 
         System.out.println("Q4 SQL warmup: ");
         // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
+        final Q4BinarySearchCache q4Cache = new Q4BinarySearchCache(q4WarmUpFile);
         HttpHandler q4SQLHandler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
                      throws Exception {
@@ -624,35 +625,55 @@ public class App {
                 String nStr = exchange.getQueryParameters().get("n").getFirst();
                 int n = Integer.parseInt(nStr);
 
+                List<String> hashtagRetweets = q4Cache.get(location + "_" + date);
+                boolean isCached = (hashtagRetweets != null);
 
-                StringBuilder sb = new StringBuilder();
-                sb.append(teamLine);
-                sb.append("\n");
-                Connection sqlConn = DataSource.getInstance().getConnection();
-                Statement statement = sqlConn.createStatement();
+                if(isCached){
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(teamLine);
+                    sb.append("\n");
 
-                for(int i = m ; i <= n ; i++){
-                    String rowKey = String.format("%s_%s_%d", location, date, i);
-                    int rowKeyHash = rowKey.hashCode();
-                    String sql_query = String.format("select retw from q4 where q4key = %d", rowKeyHash);
-                    ResultSet resultSet = statement.executeQuery(sql_query);
-                    if(!resultSet.next()){
-                        break;
+                    int hashtagRetweetsSize = hashtagRetweets.size();
+                    for( int i = (m -1) ; i < hashtagRetweetsSize && i<= (n -1) ; i++){
+                        String tagText = hashtagRetweets.get(i) ;
+                        if(tagText != null){
+                            sb.append(tagText);
+                            sb.append("\n");
+                        }
                     }
-                    String jsonStr = resultSet.getString("retw");
-                    try{
-                        JSONObject textObj = new JSONObject(jsonStr);
-                        String retwStr = textObj.getString("dt");
-                        sb.append(retwStr);
-                        sb.append("\n");
-                    }catch(Exception e ){
-                        e.printStackTrace();
-                        System.out.println(rowKeyHash );
-                        System.out.println(jsonStr);
+                    exchange.getResponseSender().send(sb.toString());
+
+                }else if(!isCached){
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(teamLine);
+                    sb.append("\n");
+
+                    Connection sqlConn = DataSource.getInstance().getConnection();
+                    Statement statement = sqlConn.createStatement();
+
+                    for(int i = m ; i <= n ; i++){
+                        String rowKey = String.format("%s_%s_%d", location, date, i);
+                        int rowKeyHash = rowKey.hashCode();
+                        String sql_query = String.format("select retw from q4 where q4key = %d", rowKeyHash);
+                        ResultSet resultSet = statement.executeQuery(sql_query);
+                        if(!resultSet.next()){
+                            break;
+                        }
+                        String jsonStr = resultSet.getString("retw");
+                        try{
+                            JSONObject textObj = new JSONObject(jsonStr);
+                            String retwStr = textObj.getString("dt");
+                            sb.append(retwStr);
+                            sb.append("\n");
+                        }catch(Exception e ){
+                            e.printStackTrace();
+                            System.out.println(rowKeyHash );
+                            System.out.println(jsonStr);
+                        }
                     }
+                    sqlConn.close();
+                    exchange.getResponseSender().send(sb.toString());
                 }
-                sqlConn.close();
-                exchange.getResponseSender().send(sb.toString());
             }
         };
 
