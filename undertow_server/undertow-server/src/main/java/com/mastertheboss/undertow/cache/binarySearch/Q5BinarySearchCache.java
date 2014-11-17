@@ -7,12 +7,11 @@ import java.io.*;
 import java.util.*;
 
 
-public class Q5BinarySearchCache implements MyCache<Integer, Scores>{
-    private BinarySearchCache<Integer, Scores> cache ;
+public class Q5BinarySearchCache implements MyCache<Long, Scores>{
+    private BinarySearchCache<Long, Scores> cache ;
     public Q5BinarySearchCache(String filename){
-        List<Integer> userIds = new ArrayList<Integer>();
+        List<Long> userIds = new ArrayList<Long>();
         List<Scores> scores = new ArrayList<Scores>();
-
 
         try{
             BufferedReader bf = new BufferedReader(new FileReader(filename));
@@ -20,7 +19,7 @@ public class Q5BinarySearchCache implements MyCache<Integer, Scores>{
             while( (line = bf.readLine()) != null){
                 try{
                     String[] tmp = line.trim().split(",");
-                    Integer userId = Integer.parseInt(tmp[0]);
+                    Long userId = Long.parseLong(tmp[0]);
                     short s1 = Short.parseShort(tmp[1]);
                     short s2 = Short.parseShort(tmp[2]);
                     short s3 = Short.parseShort(tmp[3]);
@@ -35,18 +34,18 @@ public class Q5BinarySearchCache implements MyCache<Integer, Scores>{
             e.printStackTrace();
         }
 
-        Integer[] userIdArray = (Integer[]) userIds.toArray(new Integer[userIds.size()]);
+        Long[] userIdArray = (Long[]) userIds.toArray(new Long[userIds.size()]);
         Scores[] scoreArray = (Scores[]) scores.toArray(new Scores[scores.size()]);
 
-        cache = new BinarySearchCache<Integer, Scores>(userIdArray, scoreArray,  new IntegerComparator());
+        cache = new BinarySearchCache<Long, Scores>(userIdArray, scoreArray,  new LongComparator());
 
     }
 
-    public Scores get(Integer key){
+    public Scores get(Long key){
         return this.cache.get(key);
     }
 
-    public void put(Integer key, Scores value){
+    public void put(Long key, Scores value){
         this.cache.put(key, value);
     }
 

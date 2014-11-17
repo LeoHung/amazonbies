@@ -683,7 +683,7 @@ public class App {
         System.out.println("Q5 SQL...start");
         // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         // final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
-        final MyCache<Integer, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
+        final MyCache<Long, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
         HttpHandler q5SQLHandler = new HttpHandler(){
             public String getWinner(String userA, short userAScore, String userB, short userBScore){
                 if(userAScore == userBScore){
@@ -709,8 +709,8 @@ public class App {
                     throws Exception {
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
-                int userAIdInt = Integer.parseInt(userAId);
-                int userBIdInt = Integer.parseInt(userBId);
+                long userAIdInt = Long.parseLong(userAId);
+                long userBIdInt = Long.parseLong(userBId);
 
                 Scores AScores = q5Cache.get(userAIdInt);
                 Scores BScores = q5Cache.get(userBIdInt);
