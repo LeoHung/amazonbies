@@ -236,13 +236,16 @@ public class App {
     }
 
     public static void showEnvParams(
-        int port, String hbaseIp, String q3WarmUpFile, String q4WarmUpFile,
+        int port, String hbaseIp, String mysqlIp, String q2MySQLIP, String q3WarmUpFile, String q4WarmUpFile, String q5WarmUpFile,
         String nodeType, String q3ServerIP, String q4ServerIP){
 
         System.out.println("Port: "+port);
         System.out.println("hbaseIp: "+hbaseIp);
+        System.out.println("mysqlIp: "+mysqlIp);
+        System.out.println("q2MySQLIP: "+q2MySQLIP);
         System.out.println("q3WarmUpFile: "+q3WarmUpFile);
         System.out.println("q4WarmUpFile: "+q4WarmUpFile);
+        System.out.println("q5WarmUpFile: "+q5WarmUpFile);
         System.out.println("nodeType: "+nodeType);
         System.out.println("q3ServerIP: "+q3ServerIP);
         System.out.println("q4ServerIP: "+q4ServerIP);
@@ -271,7 +274,7 @@ public class App {
         mainSQLPool = new DataSource(mysqlIp, "root", "password", "tweet");
         q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
 
-        showEnvParams(port, hbaseIp, q3WarmUpFile, q4WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
+        showEnvParams(port, hbaseIp, mysqlIp, q2MySQLIP, q3WarmUpFile, q4WarmUpFile, q5WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
         // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
