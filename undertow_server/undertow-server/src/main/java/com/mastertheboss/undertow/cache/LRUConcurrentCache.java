@@ -20,4 +20,8 @@ public class LRUConcurrentCache<K, V> implements MyCache<K, V>{
     public void put(K k, V v){
         this.cache.put(k, v);
     }
+
+    public void putIfAbsent(K k, V v){
+        this.cache.putIfAbsent(k, v);
+    }
 }

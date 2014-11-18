@@ -711,7 +711,8 @@ public class App {
         System.out.println("Q5 SQL...start");
         // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         // final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
-        final MyCache<Long, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
+        // final MyCache<Long, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
+        final LRUConcurrentCache<Long, Scores> q5Cache = new LRUConcurrentCache<Long, Scores>(10000);
         HttpHandler q5SQLHandler = new HttpHandler(){
             public String getWinner(String userA, short userAScore, String userB, short userBScore){
                 if(userAScore == userBScore){
@@ -772,9 +773,6 @@ public class App {
                             userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
                             userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
                         );
-
-                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
                     exchange.getResponseSender().send(page);
                 }else{
                     try{
@@ -825,13 +823,18 @@ public class App {
                             userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
                             userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
                         );
-                           sqlConn.close();
+                        sqlConn.close();
+
+                        AScores = new Scores((short) userAs1.intValue(), (short) userAs2.intValue(), (short) userAs3.intValue());
+                        BScores = new Scores((short) userBs1.intValue(), (short) userBs2.intValue(), (short) userBs3.intValue());
+
+                        q5Cache.putIfAbsent(userAIdInt, AScores);
+                        q5Cache.putIfAbsent(userBIdInt, BScores);
+
                         // sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
-                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
                     exchange.getResponseSender().send(page);
                 }
                 // }else{
