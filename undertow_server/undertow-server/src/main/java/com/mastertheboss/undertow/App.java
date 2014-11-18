@@ -66,6 +66,10 @@ public class App {
     final static BigInteger publicKey= new BigInteger("6876766832351765396496377534476050002970857483815262918450355869850085167053394672634315391224052153");
 
     static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
+
+    static DataSource mainSQLPool;
+    static DataSource q2SQLPool;
+
     public static boolean isDate(String dateStr)throws Exception{
         try{
             if(fmt.parse(dateStr) == null){return false;}
@@ -255,6 +259,7 @@ public class App {
         }
         String hbaseIp = System.getenv("HBASEIP");
         String mysqlIp = System.getenv("MYSQLIP");
+        String q2MySQLIP = System.getenv("Q2MYSQLIP");
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
         String q5WarmUpFile = System.getenv("WARMUPQ5FILE");
@@ -262,6 +267,9 @@ public class App {
         String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
         String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
 
+
+        mainSQLPool = new DataSource(mysqlIp, "root", "password", "tweet");
+        q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
 
         showEnvParams(port, hbaseIp, q3WarmUpFile, q4WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
@@ -327,7 +335,7 @@ public class App {
         final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         //final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
         Q2IndexConvertor.initiateOriginDate();
-        DataSource.init(mysqlIp, "root", "password", "tweet") ;
+        // DataSource.init(mysqlIp, "root", "password", "tweet") ;
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
@@ -352,7 +360,8 @@ public class App {
                 String page = null;
                 if(cachePage == null){
                     try{
-                        Connection sqlConn = DataSource.getInstance().getConnection();
+                        // Connection sqlConn = DataSource.getInstance().getConnection();
+                        Connection sqlConn = q2SQLPool.getConnection();
                         Statement statement = sqlConn.createStatement();
                         String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
 
@@ -527,7 +536,8 @@ public class App {
                     throws Exception {
                 String userId = exchange.getQueryParameters().get("userid").getFirst();
 
-                Connection sqlConn = DataSource.getInstance().getConnection();
+                // Connection sqlConn = DataSource.getInstance().getConnection();
+                Connection sqlConn = mainSQLPool.getConnection();
                 Statement statement = sqlConn.createStatement();
 
                 StringBuilder sb = new StringBuilder();
@@ -539,8 +549,8 @@ public class App {
                     sb.append(resultSet.getString("retw").replace(",", "\n"));
                 }
                 sb.append("\n");
-                sqlConn.close();
                 exchange.getResponseSender().send(sb.toString());
+                sqlConn.close();
             }
         };
 
@@ -650,7 +660,8 @@ public class App {
                     sb.append(teamLine);
                     sb.append("\n");
 
-                    Connection sqlConn = DataSource.getInstance().getConnection();
+                    // Connection sqlConn = DataSource.getInstance().getConnection();
+                    Connection sqlConn = mainSQLPool.getConnection();
                     Statement statement = sqlConn.createStatement();
 
                     for(int i = m ; i <= n ; i++){
@@ -750,7 +761,8 @@ public class App {
                     exchange.getResponseSender().send(page);
                 }else{
                     try{
-                        Connection sqlConn = DataSource.getInstance().getConnection();
+                        // Connection sqlConn = DataSource.getInstance().getConnection();
+                        Connection sqlConn = mainSQLPool.getConnection();
                         Statement statement = sqlConn.createStatement();
                         String sql_query = String.format("select userId, s1, s2, s3, total from q5 where userId = %s or userId = %s ", userAId, userBId);
                         ResultSet resultSet = statement.executeQuery(sql_query);
@@ -832,7 +844,9 @@ public class App {
                 // if(cachePage == null){
                 String page = null;
                     try{
-                        Connection sqlConn = DataSource.getInstance().getConnection();
+                        // Connection sqlConn = DataSource.getInstance().getConnection();
+                        Connection sqlConn = mainSQLPool.getConnection();
+
                         Statement statement = sqlConn.createStatement();
                         //String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
                         String sql_query = String.format("call q6query(%s,%s)", userAId, userBId);
