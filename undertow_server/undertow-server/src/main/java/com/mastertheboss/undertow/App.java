@@ -485,7 +485,7 @@ public class App {
     	System.out.println("Q3: start");
         final Q3Cache q3Cache = new Q3Cache();
         System.out.println("Q3: warmup");
-        warmUpQ3(q3Cache, q3WarmUpFile);
+        // warmUpQ3(q3Cache, q3WarmUpFile);
         System.out.println("Q3: get connection");
         final HConnection q3connection = HBaseConnection.getHBConnection(hbaseIp);
         final PeerServer q3Server = new PeerServer(q3ServerIP);
@@ -534,6 +534,7 @@ public class App {
         };
 
         // Q3
+        final LRUConcurrentCache<String,String> q3LRUCache = new LRUConcurrentCache<String, String>(10000);
         HttpHandler q3SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
@@ -546,14 +547,27 @@ public class App {
                 StringBuilder sb = new StringBuilder();
                 sb.append(teamLine);
                 sb.append("\n");
-                String sql_query = String.format("select retw from q3 where userId = %s", userId);
-                ResultSet resultSet = statement.executeQuery(sql_query);
-                if(resultSet.next()){
-                    sb.append(resultSet.getString("retw").replace(",", "\n"));
+
+                String responseText = q3LRUCache.get(userId);
+                boolean isCached = (responseText != null);
+
+                if(isCached){
+                    exchange.getResponseSender().send(responseText);
+                }else{
+                    String sql_query = String.format("select retw from q3 where userId = %s", userId);
+                    ResultSet resultSet = statement.executeQuery(sql_query);
+                    if(resultSet.next()){
+                        sb.append(resultSet.getString("retw").replace(",", "\n"));
+                    }
+                    sb.append("\n");
+                    exchange.getResponseSender().send(sb.toString());
+                    sqlConn.close();
                 }
-                sb.append("\n");
-                exchange.getResponseSender().send(sb.toString());
-                sqlConn.close();
+
+
+                if(!isCached){
+                    q3LRUCache.put(userId, sb.toString());
+                }
             }
         };
 
