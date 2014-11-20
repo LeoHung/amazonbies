@@ -308,9 +308,6 @@ public class App {
         q2SQLPools = initSQLPools(q2MySQLIPsArray);
         initRandom( q2MySQLIPsArray.length );
 
-        // q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
-        // q2SQLPool2 = new DataSource(q2MySQLIP2, "root", "password", "tweet");
-
         showEnvParams(port, hbaseIp, mysqlIp, q2MySQLIPs, q3WarmUpFile, q4WarmUpFile, q5WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
         // HeartBeat
@@ -325,7 +322,6 @@ public class App {
 
         // Q1 handler
         // q1?key=20630300497055296189489132603428150008912572451445788755351067609550255501160184017902946173672156459
-        // final ConcurrentMap<String,String> q1Cache = new ConcurrentHashMap<String,String>(7944108 );
         final MyCache<BigInteger,BigInteger> q1Cache = new LRUConcurrentCache<BigInteger, BigInteger>(1000);
         final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
         HttpHandler q1Handler = new HttpHandler(){
@@ -562,7 +558,7 @@ public class App {
         };
 
         // Q3
-        final LRUConcurrentCache<String,String> q3LRUCache = new LRUConcurrentCache<String, String>(10000);
+        final LRUConcurrentCache<String,String> q3LRUCache = new LRUConcurrentCache<String, String>(100000);
         HttpHandler q3SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
@@ -581,6 +577,12 @@ public class App {
                 if(isCached){
                     exchange.getResponseSender().send(responseText);
                 }else{
+                    /*
+                    if(exchange.isInIoThread()){
+                        exchange.dispatch(this);
+                        return;
+                    }*/
+
                     StringBuilder sqlSB = new StringBuilder("select retw from q3 where userId =");
                     sqlSB.append(userId);
                     ResultSet resultSet = statement.executeQuery(sqlSB.toString());
@@ -590,10 +592,7 @@ public class App {
                     sb.append("\n");
                     exchange.getResponseSender().send(sb.toString());
                     sqlConn.close();
-                }
 
-
-                if(!isCached){
                     q3LRUCache.put(userId, sb.toString());
                 }
             }
@@ -670,7 +669,6 @@ public class App {
         // };
 
         System.out.println("Q4 SQL warmup: ");
-        // warmUpQ4(warmUpQ4cache, q4WarmUpFile);
         final Q4BinarySearchCache q4Cache = new Q4BinarySearchCache(q4WarmUpFile);
         HttpHandler q4SQLHandler = new HttpHandler(){
              public void handleRequest(final HttpServerExchange exchange)
@@ -715,7 +713,6 @@ public class App {
                         rowKeySB.append(date);
                         rowKeySB.append("_");
                         rowKeySB.append(i);
-                        //String rowKey = String.format("%s_%s_%d", location, date, i);
                         int rowKeyHash = rowKeySB.toString().hashCode();
 
                         StringBuilder sqlSB = new StringBuilder("select retw from q4 where q4key = ");
@@ -744,9 +741,6 @@ public class App {
 
 
         System.out.println("Q5 SQL...start");
-        // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
-        // final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
-        // final MyCache<Long, Scores> q5Cache = new Q5BinarySearchCache(q5WarmUpFile);
         final LRUConcurrentCache<Long, Scores> q5Cache = new LRUConcurrentCache<Long, Scores>(10000);
         HttpHandler q5SQLHandler = new HttpHandler(){
             public String getWinner(String userA, short userAScore, String userB, short userBScore){
@@ -808,7 +802,6 @@ public class App {
                     short userBs2 = BScores.getS2();
                     short userBs3 = BScores.getS3();
                     int userBTotal = userBs1 + userBs2 + userBs3;
-
                     
                     // pageSB.append("\n");
                     // page = String.format(
@@ -902,7 +895,6 @@ public class App {
 
 
         HttpHandler q6SQLHandler = new HttpHandler(){
-
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 if (exchange.isInIoThread()) {
@@ -912,39 +904,35 @@ public class App {
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
 
-
-
-                // String cachePage = sqlCache.get(row_key);
-                // String page =null;
-                // if(cachePage == null){
                 String page = null;
                     try{
-                        // Connection sqlConn = DataSource.getInstance().getConnection();
                         Connection sqlConn = mainSQLPool.getConnection();
 
                         Statement statement = sqlConn.createStatement();
-                        //String sql_query = String.format("select count(cnt) as cnt from q6 where %s <= userId and userId <= %s ", userAId, userBId);
-                        String sql_query = String.format("call q6query(%s,%s)", userAId, userBId);
-                        ResultSet resultSet = statement.executeQuery(sql_query);
+                        StringBuilder sqlSB = new StringBuilder("call q6query(");
+                        sqlSB.append(userAId);  
+                        sqlSB.append(",");
+                        sqlSB.append(userBId);
+                        sqlSB.append(")");
+                
+                        ResultSet resultSet = statement.executeQuery(sqlSB.toString());
 
                         Integer cnt = 0;
                         while ( resultSet.next() ) {
                             cnt = resultSet.getInt("cnt");
                         }
+                        
+                        StringBuilder pageSB = new StringBuilder(teamLine);
+                        pageSB.append("\n");
+                        pageSB.append(cnt);
+                        pageSB.append("\n");
+                        exchange.getResponseSender().send(pageSB.toString());
 
-                        page = String.format("%s\n%s\n", teamLine, cnt.toString());
                         sqlConn.close();
-                        // sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
-                // }else{
-                //     page = cachePage;
-                // }
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
-                exchange.getResponseSender().send(page);
             }
         };
 
@@ -963,7 +951,6 @@ public class App {
         pathhandler.addPrefixPath("/", helloworld);
 
 
-                //setIoThreads(4)
         Undertow server = Undertow.builder()
                 .setIoThreads(2)
                 .setWorkerThreads(100)
