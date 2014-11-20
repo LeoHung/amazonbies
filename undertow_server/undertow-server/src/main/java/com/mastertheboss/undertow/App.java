@@ -413,8 +413,6 @@ public class App {
                         contentSB.append(censoredJson.getString("ct"));
                         contentSB.append(";");
                     }
-                    // page = teamLine + "\n" + content;
-                    // sqlCache.put(row_key, page);
                     sqlConn.close();
                 }catch(Exception e ){
                     e.printStackTrace();
@@ -570,7 +568,6 @@ public class App {
                     throws Exception {
                 String userId = exchange.getQueryParameters().get("userid").getFirst();
 
-                // Connection sqlConn = DataSource.getInstance().getConnection();
                 Connection sqlConn = mainSQLPool.getConnection();
                 Statement statement = sqlConn.createStatement();
 
@@ -584,8 +581,9 @@ public class App {
                 if(isCached){
                     exchange.getResponseSender().send(responseText);
                 }else{
-                    String sql_query = String.format("select retw from q3 where userId = %s", userId);
-                    ResultSet resultSet = statement.executeQuery(sql_query);
+                    StringBuilder sqlSB = new StringBuilder("select retw from q3 where userId =");
+                    sqlSB.append(userId);
+                    ResultSet resultSet = statement.executeQuery(sqlSB.toString());
                     if(resultSet.next()){
                         sb.append(resultSet.getString("retw").replace(",", "\n"));
                     }
@@ -707,15 +705,22 @@ public class App {
                     sb.append(teamLine);
                     sb.append("\n");
 
-                    // Connection sqlConn = DataSource.getInstance().getConnection();
                     Connection sqlConn = mainSQLPool.getConnection();
                     Statement statement = sqlConn.createStatement();
 
                     for(int i = m ; i <= n ; i++){
-                        String rowKey = String.format("%s_%s_%d", location, date, i);
-                        int rowKeyHash = rowKey.hashCode();
-                        String sql_query = String.format("select retw from q4 where q4key = %d", rowKeyHash);
-                        ResultSet resultSet = statement.executeQuery(sql_query);
+                        StringBuilder rowKeySB = new StringBuilder();
+                        rowKeySB.append(location);
+                        rowKeySB.append("_");
+                        rowKeySB.append(date);
+                        rowKeySB.append("_");
+                        rowKeySB.append(i);
+                        //String rowKey = String.format("%s_%s_%d", location, date, i);
+                        int rowKeyHash = rowKeySB.toString().hashCode();
+
+                        StringBuilder sqlSB = new StringBuilder("select retw from q4 where q4key = ");
+                        sqlSB.append(rowKeyHash);
+                        ResultSet resultSet = statement.executeQuery(sqlSB.toString());
                         if(!resultSet.next()){
                             break;
                         }
@@ -788,6 +793,7 @@ public class App {
                     short userBs2 = BScores.getS2();
                     short userBs3 = BScores.getS3();
                     int userBTotal = userBs1 + userBs2 + userBs3;
+
 
                     page = String.format(
                             "%s\n"+
