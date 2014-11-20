@@ -278,10 +278,10 @@ public class App {
         r = new Random();
         randomMax = numOfIp;
     }
-    
+
     public static int getQ2PoolIndex(){
         return r.nextInt(randomMax);
-    }   
+    }
 
     public static void main(final String[] args) throws Exception{
 
@@ -302,7 +302,7 @@ public class App {
         final String nodeType = System.getenv("NODETYPE"); // nodeType = Q3 or Q4
         String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
         String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
-        
+
 
         mainSQLPool = new DataSource(mysqlIp, "root", "password", "tweet");
         q2SQLPools = initSQLPools(q2MySQLIPsArray);
@@ -372,7 +372,7 @@ public class App {
 
         // Q2 sql handler
     	System.out.println("Q2 SQL...start");
-        final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
+        // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
         //final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
         Q2IndexConvertor.initiateOriginDate();
         // DataSource.init(mysqlIp, "root", "password", "tweet") ;
@@ -386,43 +386,46 @@ public class App {
 
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
-                String row_key = userid+"_"+tweet_time;
 
                 Long rowKeyHash = Q2IndexConvertor.convertToLong(userid, tweet_time);
 
-                // String cachePage = sqlCache.get(row_key);
-                String cachePage = null;
-                String page = null;
-                if(cachePage == null){
-                    try{
-                        Connection sqlConn = null;
-                        int sqlIndex = getQ2PoolIndex();
-                        sqlConn = q2SQLPools[sqlIndex].getConnection();
-                        Statement statement = sqlConn.createStatement();
-                        
-                        String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
+                StringBuilder contentSB = new StringBuilder();
 
-                        ResultSet resultSet = statement.executeQuery(sql_query);
-                        String content = "";
-                        while ( resultSet.next() ) {
-                            String tweetId = resultSet.getString("tweetId");
-                            Integer score = resultSet.getInt("score");
-                            String censoredJsonStr = resultSet.getString("censored");
-                            JSONObject censoredJson = new JSONObject(censoredJsonStr);
-                            String censored = censoredJson.getString("ct");
-                            content += (tweetId +":"+score+":"+censored+";");
-                        }
-                        page = teamLine + "\n" + content;
-                        sqlCache.put(row_key, page);
-                        sqlConn.close();
-                    }catch(Exception e ){
-                        e.printStackTrace();
+                try{
+                    Connection sqlConn = null;
+                    int sqlIndex = getQ2PoolIndex();
+                    sqlConn = q2SQLPools[sqlIndex].getConnection();
+                    Statement statement = sqlConn.createStatement();
+
+                    String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
+
+                    ResultSet resultSet = statement.executeQuery(sql_query);
+
+                    contentSB.append(teamLine);
+                    contentSB.append("\n");
+
+                    while (resultSet.next()) {
+                        contentSB.append(resultSet.getString("tweetId"));
+                        contentSB.append(":");
+                        contentSB.append(resultSet.getInt("score"));
+                        contentSB.append(":");
+                        // String tweetId = resultSet.getString("tweetId");
+                        // Integer score = resultSet.getInt("score");
+                        String censoredJsonStr = resultSet.getString("censored");
+                        JSONObject censoredJson = new JSONObject(censoredJsonStr);
+                        // String censored = censoredJson.getString("ct");
+                        contentSB.append(censoredJson.getString("ct"));
+                        contentSB.append(";");
+                        // content += (tweetId +":"+score+":"+censored+";");
                     }
-                }else{
-                    page = cachePage;
+                    // page = teamLine + "\n" + content;
+                    // sqlCache.put(row_key, page);
+                    sqlConn.close();
+                }catch(Exception e ){
+                    e.printStackTrace();
                 }
 
-                exchange.getResponseSender().send(page);
+                exchange.getResponseSender().send(contentSB.toString());
             }
         };
 
