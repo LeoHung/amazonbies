@@ -68,7 +68,7 @@ public class App {
     static SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss");
 
     static DataSource mainSQLPool;
-    static DataSource q2SQLPool;
+    static DataSource[] q2SQLPools;
 
     public static boolean isDate(String dateStr)throws Exception{
         try{
@@ -252,6 +252,21 @@ public class App {
 
     }
 
+    public static DataSource[] initSQLPools(String[] q2MySQLIPs){
+        DataSource[] ret = new DataSource[q2MySQLIPs.length];
+
+        for(int i = 0; i < q2MySQLIPs.length; i++){
+            String ip = q2MySQLIPs[i];
+            try{
+                ret[i] = new DataSource(ip, "root", "password", "tweet");
+            }catch(Exception e){
+                System.out.println("Cannot get connection to MySQL: "+ ip);
+                e.printStackTrace();
+            }
+        }
+        return ret;
+    }
+
     public static void main(final String[] args) throws Exception{
 
         //parameters
@@ -262,7 +277,9 @@ public class App {
         }
         String hbaseIp = System.getenv("HBASEIP");
         String mysqlIp = System.getenv("MYSQLIP");
-        String q2MySQLIP = System.getenv("Q2MYSQLIP");
+        String q2MySQLIPs = System.getenv("Q2MYSQLIPs");
+        String[] q2MySQLIPsArray = q2MySQLIPs.trim().split(",");
+
         String q3WarmUpFile = System.getenv("WARMUPQ3FILE");
         String q4WarmUpFile = System.getenv("WARMUPQ4FILE");
         String q5WarmUpFile = System.getenv("WARMUPQ5FILE");
@@ -270,11 +287,13 @@ public class App {
         String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
         String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
 
-
         mainSQLPool = new DataSource(mysqlIp, "root", "password", "tweet");
-        q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
+        q2SQLPools = initSQLPools(q2MySQLIPsArray);
 
-        showEnvParams(port, hbaseIp, mysqlIp, q2MySQLIP, q3WarmUpFile, q4WarmUpFile, q5WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
+        // q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
+        // q2SQLPool2 = new DataSource(q2MySQLIP2, "root", "password", "tweet");
+
+        showEnvParams(port, hbaseIp, mysqlIp, q2MySQLIPs, q3WarmUpFile, q4WarmUpFile, q5WarmUpFile, nodeType, q3ServerIP, q4ServerIP);
 
         // HeartBeat
         HttpHandler helloworld = new HttpHandler() {
@@ -350,11 +369,6 @@ public class App {
                 String userid = exchange.getQueryParameters().get("userid").getFirst();
                 String tweet_time = exchange.getQueryParameters().get("tweet_time").getFirst().replace(" ", "+");
                 String row_key = userid+"_"+tweet_time;
-                // filter
-                //if(userid.length() == 0 || tweet_time.trim().length() == 0){
-                //    exchange.getResponseSender().send(teamLine);
-                //    return;
-                //}
 
                 Long rowKeyHash = Q2IndexConvertor.convertToLong(userid, tweet_time);
 
@@ -363,10 +377,12 @@ public class App {
                 String page = null;
                 if(cachePage == null){
                     try{
-                        // Connection sqlConn = DataSource.getInstance().getConnection();
-                        Connection sqlConn = q2SQLPool.getConnection();
+                        Connection sqlConn = null;
                         Statement statement = sqlConn.createStatement();
                         String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
+
+                        int sqlIndex = ((int)System.currentTimeMillis() )% 2;
+                        sqlConn = q2SQLPools[sqlIndex].getConnection();
 
                         ResultSet resultSet = statement.executeQuery(sql_query);
                         String content = "";
@@ -388,8 +404,6 @@ public class App {
                     page = cachePage;
                 }
 
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE,
-                        "text/plain");
                 exchange.getResponseSender().send(page);
             }
         };
