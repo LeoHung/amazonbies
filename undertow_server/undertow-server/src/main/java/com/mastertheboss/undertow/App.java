@@ -373,9 +373,7 @@ public class App {
         // Q2 sql handler
     	System.out.println("Q2 SQL...start");
         // final ConcurrentMap<String,String> sqlCache = new ConcurrentHashMap<String,String>();
-        //final Connection sqlConn = SQLConnection.getSQLConnection(mysqlIp);
         Q2IndexConvertor.initiateOriginDate();
-        // DataSource.init(mysqlIp, "root", "password", "tweet") ;
         HttpHandler q2SQLHandler = new HttpHandler(){
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
@@ -397,9 +395,10 @@ public class App {
                     sqlConn = q2SQLPools[sqlIndex].getConnection();
                     Statement statement = sqlConn.createStatement();
 
-                    String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
+                    StringBuilder sqlSB = new StringBuilder("select tweetId, score, censored from q2 where q2key=");
+                    sqlSB.append(rowKeyHash);
 
-                    ResultSet resultSet = statement.executeQuery(sql_query);
+                    ResultSet resultSet = statement.executeQuery(sqlSB.toString());
 
                     contentSB.append(teamLine);
                     contentSB.append("\n");
@@ -409,14 +408,10 @@ public class App {
                         contentSB.append(":");
                         contentSB.append(resultSet.getInt("score"));
                         contentSB.append(":");
-                        // String tweetId = resultSet.getString("tweetId");
-                        // Integer score = resultSet.getInt("score");
                         String censoredJsonStr = resultSet.getString("censored");
                         JSONObject censoredJson = new JSONObject(censoredJsonStr);
-                        // String censored = censoredJson.getString("ct");
                         contentSB.append(censoredJson.getString("ct"));
                         contentSB.append(";");
-                        // content += (tweetId +":"+score+":"+censored+";");
                     }
                     // page = teamLine + "\n" + content;
                     // sqlCache.put(row_key, page);
