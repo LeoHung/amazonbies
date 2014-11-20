@@ -49,6 +49,8 @@ import org.apache.commons.codec.binary.Base64;
 
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 
+import java.util.Random;
+
 import com.mastertheboss.undertow.peer.PeerServer;
 import com.mastertheboss.undertow.cache.*;
 import com.mastertheboss.undertow.myutils.*;
@@ -69,6 +71,9 @@ public class App {
 
     static DataSource mainSQLPool;
     static DataSource[] q2SQLPools;
+
+    static Random r;
+    static int randomMax = -1;
 
     public static boolean isDate(String dateStr)throws Exception{
         try{
@@ -257,7 +262,9 @@ public class App {
 
         for(int i = 0; i < q2MySQLIPs.length; i++){
             String ip = q2MySQLIPs[i];
+            //System.out.println("q2 ip: "+ q2MySQLIPs[i] );
             try{
+
                 ret[i] = new DataSource(ip, "root", "password", "tweet");
             }catch(Exception e){
                 System.out.println("Cannot get connection to MySQL: "+ ip);
@@ -266,6 +273,15 @@ public class App {
         }
         return ret;
     }
+
+    public static void initRandom(int numOfIp){
+        r = new Random();
+        randomMax = numOfIp;
+    }
+    
+    public static int getQ2PoolIndex(){
+        return r.nextInt(randomMax);
+    }   
 
     public static void main(final String[] args) throws Exception{
 
@@ -286,9 +302,11 @@ public class App {
         final String nodeType = System.getenv("NODETYPE"); // nodeType = Q3 or Q4
         String q3ServerIP = System.getenv("Q3SERVERIP"); //Q3 server ip
         String q4ServerIP = System.getenv("Q4SERVERIP"); //Q4 server ip
+        
 
         mainSQLPool = new DataSource(mysqlIp, "root", "password", "tweet");
         q2SQLPools = initSQLPools(q2MySQLIPsArray);
+        initRandom( q2MySQLIPsArray.length );
 
         // q2SQLPool = new DataSource(q2MySQLIP, "root", "password", "tweet");
         // q2SQLPool2 = new DataSource(q2MySQLIP2, "root", "password", "tweet");
@@ -378,11 +396,11 @@ public class App {
                 if(cachePage == null){
                     try{
                         Connection sqlConn = null;
-                        Statement statement = sqlConn.createStatement();
-                        String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
-
-                        int sqlIndex = ((int)System.currentTimeMillis() )% 2;
+                        int sqlIndex = getQ2PoolIndex();
                         sqlConn = q2SQLPools[sqlIndex].getConnection();
+                        Statement statement = sqlConn.createStatement();
+                        
+                        String sql_query = "select tweetId, score, censored from q2 where q2key="+rowKeyHash;
 
                         ResultSet resultSet = statement.executeQuery(sql_query);
                         String content = "";

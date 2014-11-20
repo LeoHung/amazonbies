@@ -1,10 +1,11 @@
-export PORT=8080
+export PORT=80
 export WARMUPQ1NUM=0
 export HBASEIP=null
-export MYSQLIP=54.86.62.157
+export MYSQLIP=null
+export Q2MYSQLIPs=172.31.37.251,172.31.39.63,172.31.41.20
 export WARMUPQ3FILE=data/q3.empty
-export WARMUPQ4FILE=data/q4.empty
-export WARMUPQ5FILE=data/q5.small
+export WARMUPQ4FILE=data/q4.output
+export WARMUPQ5FILE=data/q5.empty
 export Q3SERVERIP=null
 export Q4SERVERIP=null
 export MAVEN_OPTS="-Xms4g -Xmx6g"
