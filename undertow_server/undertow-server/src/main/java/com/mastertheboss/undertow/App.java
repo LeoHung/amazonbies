@@ -769,19 +769,34 @@ public class App {
                     return userB;
                 }
             }
+            public String renderOutput(String teamLine, String userAId, int userAs1, int userAs2, int userAs3, int userATotal, String userBId, int userBs1, int userBs2, int userBs3, int userBTotal ){
+                return renderOutput(teamLine, userAId, (short) userAs1, (short) userAs2, (short) userAs3, (short) userATotal, userBId, (short) userBs1, (short) userBs2, (short) userBs3, (short) userBTotal);
+            }
+
+            public String renderOutput(String teamLine, String userAId, short userAs1, short userAs2, short userAs3, short userATotal, String userBId, short userBs1, short userBs2, short userBs3, short userBTotal){
+                    StringBuilder pageSB = new StringBuilder();
+                    pageSB.append(teamLine); pageSB.append("\n");
+                    pageSB.append(userAId); pageSB.append("\t"); pageSB.append(userBId); pageSB.append("\tWINNER\n");  
+                    pageSB.append(userAs1); pageSB.append("\t"); pageSB.append(userBs1); pageSB.append("\t"); pageSB.append(getWinner(userAId, userAs1, userBId, userBs1)); pageSB.append("\n");
+                    pageSB.append(userAs2); pageSB.append("\t"); pageSB.append(userBs2); pageSB.append("\t"); pageSB.append(getWinner(userAId, userAs2, userBId, userBs2)); pageSB.append("\n");
+                    pageSB.append(userAs3); pageSB.append("\t"); pageSB.append(userBs3); pageSB.append("\t"); pageSB.append(getWinner(userAId, userAs3, userBId, userBs3)); pageSB.append("\n");
+                    pageSB.append(userATotal); pageSB.append("\t"); pageSB.append(userBTotal); pageSB.append("\t"); pageSB.append(getWinner(userAId, userATotal, userBId, userBTotal)); pageSB.append("\n");
+
+                return pageSB.toString();
+            } 
+            
             public void handleRequest(final HttpServerExchange exchange)
                     throws Exception {
                 String userAId = exchange.getQueryParameters().get("m").getFirst();
                 String userBId = exchange.getQueryParameters().get("n").getFirst();
-                long userAIdInt = Long.parseLong(userAId);
-                long userBIdInt = Long.parseLong(userBId);
 
-                Scores AScores = q5Cache.get(userAIdInt);
-                Scores BScores = q5Cache.get(userBIdInt);
+                long userAIdLong = Long.parseLong(userAId);
+                long userBIdLong = Long.parseLong(userBId);
+
+                Scores AScores = q5Cache.get(userAIdLong);
+                Scores BScores = q5Cache.get(userBIdLong);
 
                 boolean isCached = ((AScores !=null) && (BScores != null));
-
-                String page = null;
 
                 if(isCached){
                     short userAs1 = AScores.getS1();
@@ -794,22 +809,27 @@ public class App {
                     short userBs3 = BScores.getS3();
                     int userBTotal = userBs1 + userBs2 + userBs3;
 
-
-                    page = String.format(
-                            "%s\n"+
-                            "%s\t%s\tWINNER\n"+
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n",
-                            teamLine,
-                            userAId, userBId,
-                            userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
-                            userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
-                            userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
-                            userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
-                        );
-                    exchange.getResponseSender().send(page);
+                    
+                    // pageSB.append("\n");
+                    // page = String.format(
+                   //         "%s\n"+
+                   //         "%s\t%s\tWINNER\n"+
+                   //         "%d\t%d\t%s\n" +
+                   //         "%d\t%d\t%s\n" +
+                   //         "%d\t%d\t%s\n" +
+                   //         "%d\t%d\t%s\n",
+                   //         teamLine,
+                   //         userAId, userBId,
+                   //         userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
+                   //         userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
+                   //         userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
+                   //         userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
+                   //     );
+                    exchange.getResponseSender().send(
+                        renderOutput(teamLine, 
+                            userAId, userAs1, userAs2, userAs3, userATotal, 
+                            userBId, userBs1, userBs2, userBs3, userBTotal)
+                    );
                 }else{
                     try{
                         // Connection sqlConn = DataSource.getInstance().getConnection();
@@ -845,39 +865,38 @@ public class App {
                             }
                         }
 
-                        page = String.format(
-                            "%s\n"+
-                            "%s\t%s\tWINNER\n"+
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n" +
-                            "%d\t%d\t%s\n",
-                            teamLine,
-                            userAId, userBId,
-                            userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
-                            userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
-                            userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
-                            userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
-                        );
+                       // page = String.format(
+                       //     "%s\n"+
+                       //     "%s\t%s\tWINNER\n"+
+                       //     "%d\t%d\t%s\n" +
+                       //     "%d\t%d\t%s\n" +
+                       //     "%d\t%d\t%s\n" +
+                       //     "%d\t%d\t%s\n",
+                       //     teamLine,
+                       //     userAId, userBId,
+                       //     userAs1, userBs1, getWinner(userAId, userAs1, userBId, userBs1),
+                       //     userAs2, userBs2, getWinner(userAId, userAs2, userBId, userBs2),
+                       //     userAs3, userBs3, getWinner(userAId, userAs3, userBId, userBs3),
+                       //     userATotal, userBTotal, getWinner(userAId, userATotal, userBId, userBTotal)
+                       // );
+                        exchange.getResponseSender().send(
+                            renderOutput(teamLine,
+                                userAId, userAs1, userAs2, userAs3, userATotal,
+                                userBId, userBs1, userBs2, userBs3, userBTotal)
+                        );                        
+
                         sqlConn.close();
 
                         AScores = new Scores((short) userAs1.intValue(), (short) userAs2.intValue(), (short) userAs3.intValue());
                         BScores = new Scores((short) userBs1.intValue(), (short) userBs2.intValue(), (short) userBs3.intValue());
 
-                        q5Cache.putIfAbsent(userAIdInt, AScores);
-                        q5Cache.putIfAbsent(userBIdInt, BScores);
+                        q5Cache.putIfAbsent(userAIdLong, AScores);
+                        q5Cache.putIfAbsent(userBIdLong, BScores);
 
-                        // sqlCache.put(row_key, page);
                     }catch(Exception e ){
                         e.printStackTrace();
                     }
-                    exchange.getResponseSender().send(page);
                 }
-                // }else{
-                //     page = cachePage;
-                // }
-
-
             }
         };
 
