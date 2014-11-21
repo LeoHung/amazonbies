@@ -344,6 +344,7 @@ public class App {
                 sb.append(timeFormat.format(Calendar.getInstance().getTime()));
 
                 exchange.getResponseSender().send(sb.toString());
+                exchange.endExchange();
 
         		if(!isCached){
                     q1Cache.put(key, number);
@@ -496,6 +497,7 @@ public class App {
                 }
 
                 exchange.getResponseSender().send(page);
+                exchange.endExchange();
 
 
                 if(!isCached){
@@ -564,24 +566,24 @@ public class App {
                     throws Exception {
                 String userId = exchange.getQueryParameters().get("userid").getFirst();
 
-                Connection sqlConn = mainSQLPool.getConnection();
-                Statement statement = sqlConn.createStatement();
-
-                StringBuilder sb = new StringBuilder();
-                sb.append(teamLine);
-                sb.append("\n");
-
-                String responseText = q3LRUCache.get(userId);
+                                String responseText = q3LRUCache.get(userId);
                 boolean isCached = (responseText != null);
 
                 if(isCached){
                     exchange.getResponseSender().send(responseText);
+                    exchange.endExchange();
                 }else{
-                    /*
                     if(exchange.isInIoThread()){
                         exchange.dispatch(this);
                         return;
-                    }*/
+                    }
+
+                    Connection sqlConn = mainSQLPool.getConnection();
+                    Statement statement = sqlConn.createStatement();
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(teamLine);
+                    sb.append("\n");
 
                     StringBuilder sqlSB = new StringBuilder("select retw from q3 where userId =");
                     sqlSB.append(userId);
@@ -591,6 +593,8 @@ public class App {
                     }
                     sb.append("\n");
                     exchange.getResponseSender().send(sb.toString());
+                    exchange.endExchange();
+
                     sqlConn.close();
 
                     q3LRUCache.put(userId, sb.toString());
@@ -824,6 +828,11 @@ public class App {
                             userBId, userBs1, userBs2, userBs3, userBTotal)
                     );
                 }else{
+                    if(exchange.isInIoThread()){
+                        exchange.dispatch(this);
+                        return;
+                    }
+
                     try{
                         // Connection sqlConn = DataSource.getInstance().getConnection();
                         Connection sqlConn = mainSQLPool.getConnection();
@@ -877,9 +886,9 @@ public class App {
                                 userAId, userAs1, userAs2, userAs3, userATotal,
                                 userBId, userBs1, userBs2, userBs3, userBTotal)
                         );                        
+                        exchange.endExchange();
 
                         sqlConn.close();
-
                         AScores = new Scores((short) userAs1.intValue(), (short) userAs2.intValue(), (short) userAs3.intValue());
                         BScores = new Scores((short) userBs1.intValue(), (short) userBs2.intValue(), (short) userBs3.intValue());
 

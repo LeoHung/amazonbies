@@ -1,8 +1,8 @@
 export PORT=80
 export WARMUPQ1NUM=0
 export HBASEIP=null
-export MYSQLIP=172.31.41.20
-export Q2MYSQLIPs=172.31.41.20
+export MYSQLIP=172.31.45.200
+export Q2MYSQLIPs=172.31.43.76,172.31.43.75,172.31.43.74
 export WARMUPQ3FILE=data/q3.empty
 export WARMUPQ4FILE=data/q4.output
 export WARMUPQ5FILE=data/q5.empty
